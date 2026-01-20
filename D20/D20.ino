@@ -162,11 +162,12 @@ void changeDiceType() {
   Serial.print("Changed to: ");
   Serial.println(diceName);
 
-  // Reset history when changing dice type
+  // Reset quantity when changing dice type (keep currentNumber visible)
   previousNumber = 0;
+  diceQuantity = 1;
 
   // Show new dice type
-  drawWelcomeScreen(currentDiceType, diceQuantity, rollMode);
+  drawWelcomeScreen(currentDiceType, diceQuantity, rollMode, currentNumber);
 }
 
 void toggleRollMode() {
@@ -182,8 +183,11 @@ void toggleRollMode() {
     Serial.println("Mode: NORMAL");
   }
 
+  // Reset quantity when changing roll mode
+  diceQuantity = 1;
+
   // Update display
-  drawWelcomeScreen(currentDiceType, diceQuantity, rollMode);
+  drawWelcomeScreen(currentDiceType, diceQuantity, rollMode, currentNumber);
 }
 
 void increaseDiceQuantity() {
@@ -191,7 +195,7 @@ void increaseDiceQuantity() {
     diceQuantity++;
     Serial.print("Quantity: ");
     Serial.println(diceQuantity);
-    drawWelcomeScreen(currentDiceType, diceQuantity, rollMode);
+    drawWelcomeScreen(currentDiceType, diceQuantity, rollMode, currentNumber);
   }
 }
 
@@ -200,7 +204,7 @@ void decreaseDiceQuantity() {
     diceQuantity--;
     Serial.print("Quantity: ");
     Serial.println(diceQuantity);
-    drawWelcomeScreen(currentDiceType, diceQuantity, rollMode);
+    drawWelcomeScreen(currentDiceType, diceQuantity, rollMode, currentNumber);
   }
 }
 

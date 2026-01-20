@@ -19,7 +19,7 @@ void initDisplay() {
   Serial.println("Display initialized with hardware SPI @ 40MHz");
 }
 
-void drawWelcomeScreen(DiceType diceType, int quantity, RollMode mode) {
+void drawWelcomeScreen(DiceType diceType, int quantity, RollMode mode, int lastRoll) {
   // Don't clear screen if coming from boot (already cleared in initDisplay)
   // Only clear when changing dice type
   static bool firstBoot = true;
@@ -32,18 +32,35 @@ void drawWelcomeScreen(DiceType diceType, int quantity, RollMode mode) {
   String diceName = getDiceName(diceType);
   uint16_t diceColor = getDiceColor(diceType);
 
-  // Build display name with quantity
-  String displayName = String(quantity) + diceName;
+  // Calculate text bounds for both parts to center them together
+  int16_t x1, y1;
+  uint16_t w, h, qtyW, qtyH, diceW, diceH;
+
+  String qtyStr = String(quantity);
+  tft.setTextSize(4);  // Smaller size for quantity
+  tft.getTextBounds(qtyStr.c_str(), 0, 0, &x1, &y1, &qtyW, &qtyH);
+
+  tft.setTextSize(5);  // Larger size for dice name
+  tft.getTextBounds(diceName.c_str(), 0, 0, &x1, &y1, &diceW, &diceH);
+
+  // Total width and use larger height
+  uint16_t totalW = qtyW + diceW;
+  uint16_t maxH = max(qtyH, diceH);
+
+  int startX = (240 - totalW) / 2;
+  int startY = (240 - maxH) / 2 - 30;
 
   tft.setTextColor(diceColor);
-  tft.setTextSize(4);
 
-  // Center dice name text
-  int16_t x1, y1;
-  uint16_t w, h;
-  tft.getTextBounds(displayName.c_str(), 0, 0, &x1, &y1, &w, &h);
-  tft.setCursor((240 - w) / 2, (240 - h) / 2 - 30);
-  tft.println(displayName);
+  // Draw quantity (smaller)
+  tft.setTextSize(4);
+  tft.setCursor(startX, startY + (diceH - qtyH));  // Align baseline with dice name
+  tft.print(qtyStr);
+
+  // Draw dice name (larger)
+  tft.setTextSize(5);
+  tft.setCursor(startX + qtyW, startY);
+  tft.print(diceName);
 
   // Draw mode indicator (ADV/DIS)
   if (mode != NORMAL) {
@@ -55,19 +72,23 @@ void drawWelcomeScreen(DiceType diceType, int quantity, RollMode mode) {
     tft.println(modeText);
   }
 
-  // Draw "Press to Roll" text
-  tft.setTextSize(2);
-  tft.setTextColor(COLOR_TEXT);
-  tft.getTextBounds("Press to Roll", 0, 0, &x1, &y1, &w, &h);
-  tft.setCursor((240 - w) / 2, (240 - h) / 2 + 50);
-  tft.println("Press to Roll");
+  // Draw last roll if it exists
+  if (lastRoll > 0) {
+    tft.setTextColor(COLOR_TEXT);
+    String lastText = String(lastRoll);
+    tft.setTextSize(3);
+    tft.getTextBounds(lastText.c_str(), 0, 0, &x1, &y1, &w, &h);
+    tft.setCursor((240 - w) / 2, (240 - h) / 2 + 50);
+    tft.println(lastText);
+  }
 
   // Draw circle border
   tft.drawCircle(120, 120, 115, diceColor);
   tft.drawCircle(120, 120, 113, diceColor);
 
   Serial.print("Welcome screen drawn - ");
-  Serial.println(displayName);
+  Serial.print(quantity);
+  Serial.println(diceName);
 }
 
 void animatedRoll(int finalNumber, int maxValue, DiceType diceType) {
@@ -177,12 +198,27 @@ void displayMultiDiceResult(int total, int rolls[], int quantity, int maxValue, 
   tft.drawCircle(120, 120, 115, diceColor);
   tft.drawCircle(120, 120, 113, diceColor);
 
-  // Draw dice type with quantity at top
+  // Draw dice type with quantity at top (quantity smaller)
+  String qtyStr = String(quantity);
+  String diceName = getDiceName(diceType);
+
+  uint16_t qtyW, qtyH, diceW, diceH;
+  tft.setTextSize(1);
+  tft.getTextBounds(qtyStr.c_str(), 0, 0, &x1, &y1, &qtyW, &qtyH);
+
   tft.setTextSize(2);
+  tft.getTextBounds(diceName.c_str(), 0, 0, &x1, &y1, &diceW, &diceH);
+
+  uint16_t totalW = qtyW + diceW;
+  int startX = (240 - totalW) / 2;
+
   tft.setTextColor(diceColor);
-  String diceName = String(quantity) + getDiceName(diceType);
-  tft.getTextBounds(diceName.c_str(), 0, 0, &x1, &y1, &w, &h);
-  tft.setCursor((240 - w) / 2, 20);
+  tft.setTextSize(1);
+  tft.setCursor(startX, 20 + (diceH - qtyH));
+  tft.print(qtyStr);
+
+  tft.setTextSize(2);
+  tft.setCursor(startX + qtyW, 20);
   tft.print(diceName);
 
   // Draw individual rolls breakdown at bottom with colors
