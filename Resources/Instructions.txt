@@ -1,0 +1,37 @@
+Project: Digital D20 Dice for ESP32-C3 with GC9A01 Round Display
+Hardware:
+
+Seeed Studio XIAO ESP32-C3
+1.8" Round TFT LCD (240x240, GC9A01 driver)
+Ball tilt angle sensor (for shake detection)
+
+Wiring (as discussed):
+
+Display connections: VCC→3V3, GND→GND, CS→D3(GPIO5), DC→D2(GPIO4), RES→D1(GPIO3), SDA→D10(GPIO7), SCL→D8(GPIO6), BLK→3V3
+Tilt sensor: Connect to D9 (GPIO21) and GND (with internal pullup)
+
+Requirements:
+
+Create an Arduino sketch for the XIAO ESP32-C3
+Use the Adafruit GC9A01A library (user should install: Adafruit GFX Library and Adafruit GC9A01A)
+Initial version: Display random numbers 1-20 when tilt sensor is triggered (shake detected)
+Display the number large and centered on the round screen
+Add visual feedback (screen flash or color change) when rolling
+Use good visual design appropriate for a D&D dice
+
+Code structure:
+
+Setup display with proper pins
+Configure tilt sensor with debouncing
+Random number generation (1-20)
+Large, centered number display
+Simple roll animation (can be a flash or color change for now)
+Clear previous number before showing new one
+
+Future expansion notes:
+
+Leave room in code comments for future animations
+Consider adding a "rolling" animation state
+Could add critical hit (20) and critical fail (1) special effects later
+
+Please create a complete, well-commented Arduino sketch that implements this Digital D20 dice.
