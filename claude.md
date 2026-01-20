@@ -3,6 +3,12 @@
 ## Project Overview
 A digital D20 dice roller using an ESP32 microcontroller and a round GC9A01 display, designed for tabletop RPG gaming (D&D, etc.).
 
+## Project Documentation Files
+- **`claude.md`** (this file) - Development notes, troubleshooting, hardware configurations, and code organization guidelines
+- **`Resources/Instructions.txt`** - Original project requirements and initial wiring specifications
+- **`Resources/future-features.md`** - Planned features and enhancement ideas for future development
+- **`README.md`** - Project overview, setup instructions, and usage guide
+
 ## Final Working Configuration
 
 ### Target Hardware (Production)
@@ -351,6 +357,67 @@ The GC9A01 display ecosystem has significant library compatibility issues in 202
 7. ⏳ Add battery for truly portable operation
 
 **Target**: Compact, battery-powered, pocket-sized D20 dice using XIAO ESP32-C3 + round GC9A01 display.
+
+---
+
+## Code Organization Guidelines
+
+### When to Split Code into Separate Files
+
+The D20 project follows these principles for organizing code across multiple files:
+
+#### **Keep in Main File (.ino):**
+- Arduino lifecycle functions (`setup()`, `loop()`)
+- Pin definitions and hardware configuration
+- Button handling and input logic
+- Core game state (current dice type, roll mode, etc.)
+- Main application flow and coordination
+
+#### **Extract to Separate Files When:**
+
+**Rule of Thumb**: Create a separate module when you have **3 or more related functions** OR a **logical grouping** that could be reused elsewhere.
+
+**Examples from this project:**
+
+1. **Display.h/cpp** - Extracted because:
+   - 5+ display-related functions (`initDisplay`, `drawWelcomeScreen`, `animatedRoll`, etc.)
+   - Clear separation of concerns (display rendering vs game logic)
+   - Could be reused in other projects with similar displays
+   - Makes the main file more readable (277 lines vs 600+ if combined)
+
+2. **DiceTypes.h/cpp** - Extracted because:
+   - Centralized type definitions (`DiceType`, `RollMode` enums)
+   - 3 utility functions (`getDiceName`, `getDiceMax`, `getDiceColor`)
+   - Color constants that belong with dice types
+   - Pure helper functions with no side effects
+   - Provides clean abstraction layer
+
+#### **Benefits of This Structure:**
+- ✅ **Maintainability**: Related code grouped together
+- ✅ **Testability**: Functions can be tested in isolation
+- ✅ **Reusability**: Display and DiceTypes modules can be used in other projects
+- ✅ **Readability**: Main file focuses on high-level logic
+- ✅ **Collaboration**: Different people can work on different modules
+
+#### **When NOT to Split:**
+- ❌ Only 1-2 related functions (overhead not worth it)
+- ❌ Functions tightly coupled to main application state
+- ❌ Very project-specific code unlikely to be reused
+
+#### **File Naming Convention:**
+- Use descriptive names: `Display.h`, `DiceTypes.h` (not `utils.h`, `helpers.h`)
+- Match header and implementation files: `Display.h` ↔ `Display.cpp`
+- Use PascalCase for module names
+
+#### **Code Organization Checklist:**
+Before creating a new file, ask:
+1. Are there 3+ related functions?
+2. Does this represent a logical grouping?
+3. Could this be reused in another project?
+4. Will splitting improve readability?
+5. Is the abstraction clear and well-defined?
+
+If you answer "yes" to 3 or more, create a separate file.
 
 ---
 *Last Updated: 2026-01-20*

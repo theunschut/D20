@@ -65,7 +65,7 @@ void drawWelcomeScreen(DiceType diceType, int quantity, RollMode mode, int lastR
   // Draw mode indicator (ADV/DIS)
   if (mode != NORMAL) {
     tft.setTextSize(2);
-    tft.setTextColor(mode == ADVANTAGE ? 0x07E0 : 0xF800);  // Green for ADV, Red for DIS
+    tft.setTextColor(mode == ADVANTAGE ? COLOR_ADVANTAGE : COLOR_DISADVANTAGE);
     String modeText = mode == ADVANTAGE ? "ADV" : "DIS";
     tft.getTextBounds(modeText.c_str(), 0, 0, &x1, &y1, &w, &h);
     tft.setCursor((240 - w) / 2, (240 - h) / 2);
@@ -122,57 +122,6 @@ void animatedRoll(int finalNumber, int maxValue, DiceType diceType) {
 
   // Clear the number area one more time before showing final result
   tft.fillRect(40, 80, 160, 80, COLOR_BG);
-}
-
-void displayNumber(int number, int maxValue, DiceType diceType, int previousNumber) {
-  // Screen already mostly clear from animation, just clear edges/borders
-  tft.fillScreen(COLOR_BG);
-
-  // Choose color based on roll
-  uint16_t textColor = COLOR_TEXT;
-  if (number == maxValue && maxValue > 1) {
-    textColor = COLOR_CRIT;  // Yellow for max roll (natural 20, etc.)
-  } else if (number == 1 && maxValue > 1) {
-    textColor = COLOR_FAIL;  // Red for natural 1
-  }
-
-  // Display the number
-  tft.setTextColor(textColor);
-  tft.setTextSize(10);
-
-  // Center the number
-  String numStr = String(number);
-  int16_t x1, y1;
-  uint16_t w, h;
-  tft.getTextBounds(numStr.c_str(), 0, 0, &x1, &y1, &w, &h);
-
-  int x = (240 - w) / 2;
-  int y = (240 - h) / 2;
-
-  tft.setCursor(x, y);
-  tft.print(numStr);
-
-  // Draw circle border with dice-specific color
-  uint16_t diceColor = getDiceColor(diceType);
-  tft.drawCircle(120, 120, 115, diceColor);
-  tft.drawCircle(120, 120, 113, diceColor);
-
-  // Draw small dice type indicator at top
-  tft.setTextSize(2);
-  tft.setTextColor(diceColor);
-  String diceName = getDiceName(diceType);
-  tft.getTextBounds(diceName.c_str(), 0, 0, &x1, &y1, &w, &h);
-  tft.setCursor((240 - w) / 2, 20);
-  tft.print(diceName);
-
-  // Draw previous roll in corner (if exists)
-  if (previousNumber > 0) {
-    tft.setTextSize(1);
-    tft.setTextColor(COLOR_HISTORY);
-    tft.setCursor(10, 220);
-    tft.print("Last: ");
-    tft.print(previousNumber);
-  }
 }
 
 void displayMultiDiceResult(int total, int rolls[], int quantity, int maxValue, DiceType diceType, int previousNumber) {
@@ -309,7 +258,7 @@ void displayAdvDisResult(int result, int roll1, int roll2, RollMode mode, DiceTy
 
   // Draw mode and dice type at top
   tft.setTextSize(2);
-  tft.setTextColor(mode == ADVANTAGE ? 0x07E0 : 0xF800);
+  tft.setTextColor(mode == ADVANTAGE ? COLOR_ADVANTAGE : COLOR_DISADVANTAGE);
   String modeText = mode == ADVANTAGE ? "ADV " : "DIS ";
   modeText += getDiceName(diceType);
   tft.getTextBounds(modeText.c_str(), 0, 0, &x1, &y1, &w, &h);

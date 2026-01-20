@@ -23,16 +23,17 @@
 #include "Display.h"
 
 // Pin definitions for Arduino Nano ESP32 (confirmed working from forum)
+// Note: Using hardware SPI (MOSI=D11, SCK=D13) automatically when only CS, DC, RST are specified
 #define TFT_CS    9   // D9
 #define TFT_DC    8   // D8
 #define TFT_RST   7   // D7
-#define TFT_MOSI  11  // D11 - SDA (hardware SPI MOSI)
-#define TFT_SCLK  13  // D13 - SCL (hardware SPI SCK)
 
 #define ROLL_BUTTON_PIN  2   // D2 - Roll dice (will be tilt sensor later)
 #define MODE_BUTTON_PIN  3   // D3 - Change dice type (long press for advantage/disadvantage)
 #define QTY_PLUS_PIN     4   // D4 - Increase dice quantity
 #define QTY_MINUS_PIN    5   // D5 - Decrease dice quantity
+
+#define MAX_DICE_QUANTITY 4  // Maximum number of dice to roll at once
 
 // Display object - using HARDWARE SPI for maximum speed
 // Constructor with only CS, DC, RST enables hardware SPI
@@ -191,7 +192,7 @@ void toggleRollMode() {
 }
 
 void increaseDiceQuantity() {
-  if (diceQuantity < 4) {
+  if (diceQuantity < MAX_DICE_QUANTITY) {
     diceQuantity++;
     Serial.print("Quantity: ");
     Serial.println(diceQuantity);

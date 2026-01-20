@@ -19,6 +19,13 @@ enum DiceType {
   DICE_TYPE_COUNT
 };
 
+// Roll modes for advantage/disadvantage
+enum RollMode {
+  NORMAL,
+  ADVANTAGE,
+  DISADVANTAGE
+};
+
 // Color definitions for each dice type
 #define COLOR_D4      0x07FF  // Cyan
 #define COLOR_D6      0xFFE0  // Yellow
@@ -29,12 +36,13 @@ enum DiceType {
 #define COLOR_D100    0x051F  // Blue
 
 // General colors
-#define COLOR_BG      0x0000  // Black
-#define COLOR_TEXT    0xFFFF  // White
-#define COLOR_FLASH   0xF800  // Red
-#define COLOR_CRIT    0xFFE0  // Yellow (for max roll)
-#define COLOR_FAIL    0xF800  // Red (for roll of 1)
-#define COLOR_HISTORY 0x4208  // Gray (for history display)
+#define COLOR_BG           0x0000  // Black
+#define COLOR_TEXT         0xFFFF  // White
+#define COLOR_CRIT         0xFFE0  // Yellow (for max roll)
+#define COLOR_FAIL         0xF800  // Red (for roll of 1)
+#define COLOR_HISTORY      0x4208  // Gray (for history display)
+#define COLOR_ADVANTAGE    0x07E0  // Green (for ADV mode)
+#define COLOR_DISADVANTAGE 0xF800  // Red (for DIS mode)
 
 // Function declarations
 String getDiceName(DiceType type);
