@@ -18,5 +18,6 @@ void drawWelcomeScreen(DiceType diceType, int quantity = 1, RollMode mode = NORM
 void displayMultiDiceResult(int total, int rolls[], int quantity, int maxValue, DiceType diceType, int previousNumber);
 void displayAdvDisResult(int result, int roll1, int roll2, RollMode mode, DiceType diceType, int previousNumber);
 void animatedRoll(int finalNumber, int maxValue, DiceType diceType);
+void drawBatteryIndicator();
 
 #endif

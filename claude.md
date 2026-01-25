@@ -9,43 +9,68 @@ A digital D20 dice roller using an ESP32 microcontroller and a round GC9A01 disp
 - **`Resources/future-features.md`** - Planned features and enhancement ideas for future development
 - **`README.md`** - Project overview, setup instructions, and usage guide
 
+## Development Environment
+
+### Operating System: Windows
+This project is being developed on a **Windows machine**.
+
+**IMPORTANT WARNING:**
+- **NEVER use `2>nul` in bash commands** - This is Windows CMD syntax that will create a file called `nul` when used in Git Bash/WSL
+- The file `nul` is a **reserved name in Windows** and is extremely difficult to remove
+- Use `2>/dev/null` instead for stderr redirection in bash on Windows
+- If a `nul` file is accidentally created, it must be removed using special Windows commands or file manager tricks
+
+### Development Tools
+- **Arduino IDE** - For compiling and uploading to ESP32 boards
+- **Git Bash / WSL** - For command-line operations
+- **Board**: XIAO ESP32-C3 selected in Arduino IDE
+
 ## Final Working Configuration
 
-### Target Hardware (Production)
-- **Microcontroller**: Seeed Studio XIAO ESP32-C3
+### Current Hardware (Production)
+- **Microcontroller**: Seeed Studio XIAO ESP32-C3 (soldered headers)
 - **Display**: 1.28" Round TFT LCD, 240x240 pixels, GC9A01 driver
-- **Input**: Push button
+- **Input**: 4 push buttons (Roll, Mode, Qty+, Qty-)
 - **Power**: USB (3.3V) or battery
 
-### Development/Testing Hardware (Current)
+### Previous Development Hardware
 - **Microcontroller**: Arduino Nano ESP32 (ESP32-S3)
 - **Display**: 1.28" Round TFT LCD, 240x240 pixels, GC9A01 driver
-- **Input**: Push button
+- **Input**: 4 push buttons
 - **Power**: USB (3.3V)
 
-**Note**: Arduino Nano ESP32 is being used for development because it has pre-soldered headers. The final product will use XIAO ESP32-C3 due to its smaller form factor, making it ideal for a portable dice roller.
+**Note**: Development was done on Arduino Nano ESP32 due to pre-soldered headers. Now migrated to XIAO ESP32-C3 (with soldered headers) for smaller form factor, ideal for a portable dice roller.
 
 ### Wiring Diagrams
 
-#### XIAO ESP32-C3 (Final/Production Build)
+#### XIAO ESP32-C3 (Current/Production Build)
 **GC9A01 Display to XIAO ESP32-C3:**
 - VCC → 3V3
 - GND → GND
-- SCL → D8 (GPIO6 - SPI SCLK)
-- SDA → D10 (GPIO7 - SPI MOSI)
+- SCL → D8 (GPIO8 - Hardware SPI SCK)
+- SDA → D10 (GPIO10 - Hardware SPI MOSI)
 - RES → D1 (GPIO3 - Reset)
 - DC → D2 (GPIO4 - Data/Command)
 - CS → D3 (GPIO5 - Chip Select)
 - BLK → 3V3 (Backlight)
 
-**Button:**
-- One side → D0 (GPIO2)
-- Other side → GND
+**Buttons:**
+- Roll Button → D7 (GPIO20) + GND
+- Mode Button → D6 (GPIO21) + GND
+- Qty Plus (+) → D4 (GPIO6) + GND
+- Qty Minus (-) → D5 (GPIO7) + GND
+
+**Note:** D0 (GPIO2) is a strapping pin - avoided entirely. D9 (GPIO9) is hardware SPI MISO - kept free.
 
 **Important Notes for XIAO:**
-- D9 (GPIO21) is the default SPI MISO pin - avoid using it for button to prevent SPI conflicts
-- Button moved to D0 (GPIO2) to keep D9 free for SPI hardware functionality
+- D9 (GPIO9) is the hardware SPI MISO pin - kept free (not used by display but reserved for SPI)
+- **Hardware SPI default pins:** D8=GPIO8 (SCK), D10=GPIO10 (MOSI)
+- Display uses 5 pins: D1, D2, D3, D8 (SCK), D10 (MOSI)
+- Available GPIO pins after display: D0, D4, D5, D6, D7 (5 pins available, using 4 for buttons)
 - **Pin headers MUST be soldered** - un-soldered pins cause unreliable SPI communication
+- **CRITICAL: Use GPIO numbers in code, not D-numbers** - Arduino library expects GPIO pin numbers (e.g., GPIO5 for D3)
+- **CRITICAL: Wire to correct hardware SPI pins** - Must use D8/D10 for hardware SPI, not D4/D5
+- **Using HARDWARE SPI @ 40MHz** - Works perfectly with correct wiring and GPIO numbers
 
 #### Arduino Nano ESP32 (Development/Testing)
 **GC9A01 Display to Arduino Nano ESP32:**
@@ -77,6 +102,7 @@ Use **Sketch > Upload Using Programmer** in Arduino IDE for reliable uploads to 
 - Pin labeled "SCL" is actually SPI **SCLK** (Serial Clock)
 - This is **NOT** an I2C interface despite the labeling suggesting otherwise
 - Source: AliExpress customer review confirmed this labeling confusion
+- **Common Mistake**: Easy to swap SCL/SDA on breadboard - double-check wiring if display initializes but shows nothing
 
 ### Pin Order Confusion
 The display PCB shows pins in reverse order when viewed from front vs back:
@@ -121,34 +147,33 @@ The display PCB shows pins in reverse order when viewed from front vs back:
 - Regular upload gets stuck or gives DFU errors
 
 #### XIAO ESP32-C3
-**Status**: ⚠️ Requires soldered headers (not yet tested with soldered pins)
-- **Target board for final product** due to small form factor (21mm x 17.8mm)
-- Currently has un-soldered pin headers causing unreliable connections
-- SPI communication is extremely sensitive to poor connections - even slight movement causes failures
-- Software SPI initialization causes memory access faults with loose connections
-- **Critical Requirement**: Pin headers MUST be soldered for reliable SPI operation
-- Serial monitor shows "Display init SUCCESS" but no visuals due to poor connections during high-speed pixel data transfer
-- Initial slow commands succeed, but fast pixel data transfer fails intermittently
+**Status**: ✅ WORKING PERFECTLY with Hardware SPI
+- **Current production board** with small form factor (21mm x 17.8mm)
+- Pin headers soldered successfully
+- **Root causes identified**:
+  1. Must use GPIO numbers in code, not D-numbers (e.g., GPIO5 for D3)
+  2. Must wire to hardware SPI pins D8/D10 for hardware SPI
+  3. Easy to swap SCL/SDA on breadboard (double-check wiring!)
+- Hardware SPI @ 40MHz working flawlessly
+- All 4 buttons functional
 
 **Why XIAO is ideal for final product:**
 1. **Size**: Tiny footprint (21mm x 17.8mm) perfect for handheld dice
 2. **Power**: Built-in battery charging circuit for LiPo batteries
 3. **Cost**: Lower cost than Arduino Nano ESP32
 4. **Integration**: Pairs perfectly with round 1.28" GC9A01 display for compact design
-5. **GPIO**: Has sufficient pins for display + button
+5. **GPIO**: Has sufficient pins for display + 4 buttons
 
-**Expected pin configuration** (once soldered, needs verification):
-- Similar to current working Nano configuration
-- CS → D3 (GPIO5), DC → D2 (GPIO4), RST → D1 (GPIO3)
-- Hardware SPI pins: MOSI → D10 (GPIO7), SCLK → D8 (GPIO6)
-- Button → D0 (GPIO2) to avoid D9/GPIO21 SPI MISO conflict
+**Final working pin configuration:**
+- CS → GPIO5 (D3 board label)
+- DC → GPIO4 (D2 board label)
+- RST → GPIO3 (D1 board label)
+- Hardware SPI pins: MOSI → GPIO10 (D10), SCLK → GPIO8 (D8)
+- Buttons: GPIO20 (D7-Roll), GPIO21 (D6-Mode), GPIO6 (D4-Qty+), GPIO7 (D5-Qty-)
 
-**Next Steps for XIAO:**
-1. Solder pin headers to XIAO ESP32-C3
-2. Test with exact same Adafruit_GC9A01A library code
-3. Verify pin assignments work as expected
-4. If issues persist, try pin combinations similar to Nano's working config
-5. Document final working XIAO configuration
+**Critical Requirements:**
+1. Pin headers MUST be soldered for reliable SPI operation
+2. Use GPIO numbers in Arduino code, NOT D-numbers from board labels
 
 ### Display Testing - ST7789 vs GC9A01
 
@@ -329,96 +354,187 @@ The GC9A01 display ecosystem has significant library compatibility issues in 202
 2. **Check forum compatibility** before choosing libraries for new boards
 3. **Test with known-working hardware** (ST7789) to isolate variables
 4. **Pin assignments matter** - Even switching CS and RST pins can make/break functionality
-5. **Software SPI more reliable** than hardware SPI for these displays
+5. **Software SPI more reliable** than hardware SPI for these displays (when using wrong pin numbers!)
 6. **Community knowledge invaluable** - Forum posts saved hours of debugging
 7. **Upload method matters** - "Upload Using Programmer" bypasses many ESP32 issues
 8. **Soldered connections are CRITICAL for SPI** - Un-soldered pins work for slow I2C but fail for high-speed SPI
 9. **Development board strategy** - Use a board with pre-soldered headers (like Nano) for faster development, then migrate to target board (XIAO) once code is proven
 10. **SPI pin conflicts** - Avoid using hardware SPI MISO pin (D9/GPIO21 on XIAO) for other purposes like buttons
 11. **"Display init SUCCESS" doesn't mean working** - Library can successfully initialize but still fail during pixel data transfer with poor connections
+12. **CRITICAL: GPIO vs D-numbers on XIAO** - Arduino code must use GPIO pin numbers (e.g., GPIO5), not board labels (e.g., D3). This was the root cause of "init success but no display" issue with soldered headers.
+13. **CRITICAL: Hardware SPI requires specific pins** - For hardware SPI to work on XIAO ESP32-C3, must wire to D8 (GPIO8/SCK) and D10 (GPIO10/MOSI), not arbitrary pins like D4/D5. Software SPI can use any pins, but hardware SPI uses board-specific defaults.
+14. **Easy to swap SCL/SDA** - When wiring on a breadboard, it's easy to accidentally swap the SCL and SDA pins. If display initializes successfully but shows no visuals, check SCL/SDA are not reversed.
+15. **GPIO2 is a strapping pin on ESP32-C3** - D0 (GPIO2) is used during boot and may not work reliably for critical inputs like the main roll button. Use GPIO20 (D7) or other non-strapping pins for primary inputs.
+16. **Windows-specific: Never use `2>nul` in bash** - On Windows, using `2>nul` in Git Bash/WSL creates a file called `nul` which is a reserved name and extremely hard to remove. Always use `2>/dev/null` for stderr redirection in bash.
+17. **Refactor early while code is fresh** - Did Step 1 refactoring (Config, ButtonHandler, GameState) at 283 lines, resulting in clean 53-line main file. Waiting longer would have made refactoring harder and riskier. The "one refactor ahead" approach (refactor before adding complex features) provides good foundation without over-engineering.
 
 ## Project Status
 
 ### Development Phase
-✅ **COMPLETE** - Fully functional Digital D20 dice on Arduino Nano ESP32 with:
+✅ **COMPLETE** - Fully functional Digital Multi-Dice on Arduino Nano ESP32 with:
 - Round GC9A01 display working
-- Button input functional
-- Special effects for critical rolls (natural 20 = yellow, natural 1 = red)
+- 4 button inputs (Roll, Mode, Qty+/-)
+- Multiple dice types (D4, D6, D8, D10, D12, D20, D100)
+- Advantage/Disadvantage rolling
+- Multi-dice rolling (1-4 dice)
+- Special effects for critical rolls
 - Clean, centered display with D&D aesthetic
 
 ### Production Phase
-⏳ **PENDING** - Migration to XIAO ESP32-C3 requires:
-1. ✅ Code ready (can use same Adafruit_GC9A01A library)
+✅ **COMPLETE** - Migration to XIAO ESP32-C3:
+1. ✅ Code ready (using Adafruit_GC9A01A library)
 2. ✅ Pin configuration documented
-3. ⏳ Solder pin headers to XIAO board
-4. ⏳ Test and verify display works with soldered connections
-5. ⏳ Confirm final pin assignments (may need minor adjustments)
-6. ⏳ Design/create enclosure for portable use
-7. ⏳ Add battery for truly portable operation
+3. ✅ Soldered pin headers to XIAO board
+4. ✅ Updated code for XIAO pin assignments (GPIO numbers, not D-numbers)
+5. ✅ All 4 buttons mapped to available GPIOs
+6. ✅ **Hardware VERIFIED and WORKING** - Hardware SPI @ 40MHz
+7. ✅ **Step 1 Refactoring COMPLETE** - Modular code structure (Config, ButtonHandler, GameState)
+8. ⏳ Design/create enclosure for portable use
+9. ⏳ Add battery for truly portable operation
 
-**Target**: Compact, battery-powered, pocket-sized D20 dice using XIAO ESP32-C3 + round GC9A01 display.
+**Current**: Fully functional XIAO ESP32-C3 with modular codebase ready for feature expansion!
+**Next**: Choose next feature (statistics, tilt sensor, sleep mode) or enclosure design.
 
 ---
 
 ## Code Organization Guidelines
 
-### When to Split Code into Separate Files
+### Current Modular Structure (Step 1 Refactoring - Completed 2026-01-25)
 
-The D20 project follows these principles for organizing code across multiple files:
+The D20 project uses a clean modular architecture for maintainability and future expansion:
 
-#### **Keep in Main File (.ino):**
-- Arduino lifecycle functions (`setup()`, `loop()`)
-- Pin definitions and hardware configuration
-- Button handling and input logic
-- Core game state (current dice type, roll mode, etc.)
-- Main application flow and coordination
+```
+D20/
+├─ D20.ino (53 lines)          - Main coordination only
+├─ Config.h (67 lines)         - Hardware configuration & constants
+├─ ButtonHandler.h/cpp (97)    - Button input handling
+├─ GameState.h/cpp (147)       - Game logic & state management
+├─ Display.h/cpp (285)         - Display rendering
+└─ DiceTypes.h/cpp (44)        - Type definitions & utilities
+```
 
-#### **Extract to Separate Files When:**
+#### **Module Responsibilities:**
 
-**Rule of Thumb**: Create a separate module when you have **3 or more related functions** OR a **logical grouping** that could be reused elsewhere.
+1. **D20.ino** - Main coordination (83% reduction from 283 lines!)
+   - Arduino lifecycle functions (`setup()`, `loop()`)
+   - Display object instantiation
+   - Subsystem initialization
+   - High-level coordination
 
-**Examples from this project:**
+2. **Config.h** - Hardware configuration
+   - Pin definitions (with GPIO number mappings)
+   - All constants (debounce, SPI speed, max dice quantity)
+   - Complete wiring reference documentation
+   - Easy hardware porting
 
-1. **Display.h/cpp** - Extracted because:
+3. **ButtonHandler.h/cpp** - Input handling
+   - Button state tracking
+   - Debouncing logic
+   - Long-press detection
+   - Single `updateButtons()` function
+   - Easy to swap for tilt sensor later
+
+4. **GameState.h/cpp** - Game logic
+   - Game state variables (diceType, quantity, rollMode, etc.)
+   - All game logic functions (roll, change dice, toggle mode)
+   - Random number generation
+   - Ready for statistics/history features
+
+5. **Display.h/cpp** - Display rendering
    - 5+ display-related functions (`initDisplay`, `drawWelcomeScreen`, `animatedRoll`, etc.)
-   - Clear separation of concerns (display rendering vs game logic)
+   - Clear separation of concerns (display vs game logic)
    - Could be reused in other projects with similar displays
-   - Makes the main file more readable (277 lines vs 600+ if combined)
 
-2. **DiceTypes.h/cpp** - Extracted because:
+6. **DiceTypes.h/cpp** - Type definitions
    - Centralized type definitions (`DiceType`, `RollMode` enums)
    - 3 utility functions (`getDiceName`, `getDiceMax`, `getDiceColor`)
-   - Color constants that belong with dice types
+   - Color constants
    - Pure helper functions with no side effects
-   - Provides clean abstraction layer
 
 #### **Benefits of This Structure:**
 - ✅ **Maintainability**: Related code grouped together
-- ✅ **Testability**: Functions can be tested in isolation
-- ✅ **Reusability**: Display and DiceTypes modules can be used in other projects
-- ✅ **Readability**: Main file focuses on high-level logic
-- ✅ **Collaboration**: Different people can work on different modules
+- ✅ **Testability**: Each module can be tested in isolation
+- ✅ **Reusability**: Display, ButtonHandler, GameState can be used in other projects
+- ✅ **Readability**: Main file is now just 53 lines of coordination code
+- ✅ **Extensibility**: Easy to add features (stats → GameState, tilt → ButtonHandler)
+- ✅ **Hardware portability**: Change Config.h to port to different boards
 
-#### **When NOT to Split:**
-- ❌ Only 1-2 related functions (overhead not worth it)
-- ❌ Functions tightly coupled to main application state
-- ❌ Very project-specific code unlikely to be reused
+#### **Future Expansion Ready:**
+- **Add tilt sensor?** → Modify ButtonHandler.cpp
+- **Add statistics?** → Extend GameState.cpp
+- **Add sleep mode?** → Add to Config.h and main.ino
+- **Add bluetooth?** → Create new module, GameState is isolated and ready
 
 #### **File Naming Convention:**
-- Use descriptive names: `Display.h`, `DiceTypes.h` (not `utils.h`, `helpers.h`)
+- Use descriptive names: `Display.h`, `GameState.h` (not `utils.h`, `helpers.h`)
 - Match header and implementation files: `Display.h` ↔ `Display.cpp`
 - Use PascalCase for module names
 
-#### **Code Organization Checklist:**
-Before creating a new file, ask:
-1. Are there 3+ related functions?
-2. Does this represent a logical grouping?
-3. Could this be reused in another project?
-4. Will splitting improve readability?
-5. Is the abstraction clear and well-defined?
+---
 
-If you answer "yes" to 3 or more, create a separate file.
+## Final Working Configuration Summary (2026-01-25)
+
+### ✅ Hardware: XIAO ESP32-C3 (CONFIRMED WORKING)
+
+**Display Wiring (GC9A01 1.28" Round):**
+```
+VCC → 3V3
+GND → GND
+SCL → D8  (GPIO8 - Hardware SPI Clock)
+SDA → D10 (GPIO10 - Hardware SPI MOSI)
+RES → D1  (GPIO3 - Reset)
+DC  → D2  (GPIO4 - Data/Command)
+CS  → D3  (GPIO5 - Chip Select)
+BLK → 3V3 (Backlight)
+```
+
+**Button Wiring:**
+```
+Roll Button (Primary)    → D7 + GND (GPIO20)
+Mode Button (Long press) → D6 + GND (GPIO21)
+Qty Plus Button          → D4 + GND (GPIO6)
+Qty Minus Button         → D5 + GND (GPIO7)
+```
+
+**Unused Pins:**
+- D0 (GPIO2) - Strapping pin, avoided
+- D9 (GPIO9) - Hardware SPI MISO, kept free
+
+### ✅ Software Configuration
+
+**Pin Definitions (use GPIO numbers in code):**
+```cpp
+#define TFT_CS    5   // D3 = GPIO5
+#define TFT_DC    4   // D2 = GPIO4
+#define TFT_RST   3   // D1 = GPIO3
+// Hardware SPI auto-uses GPIO8 (D8) and GPIO10 (D10)
+
+#define ROLL_BUTTON_PIN  20  // D7 = GPIO20
+#define MODE_BUTTON_PIN  21  // D6 = GPIO21
+#define QTY_PLUS_PIN     6   // D4 = GPIO6
+#define QTY_MINUS_PIN    7   // D5 = GPIO7
+```
+
+**Display Initialization:**
+```cpp
+Adafruit_GC9A01A tft(TFT_CS, TFT_DC, TFT_RST);  // 3-param = hardware SPI
+tft.begin(40000000);  // Hardware SPI @ 40MHz
+```
+
+### ✅ Features Working
+- Multiple dice types (D4/D6/D8/D10/D12/D20/D100)
+- Multi-dice rolling (1-4 dice)
+- Advantage/Disadvantage mode
+- Critical hit/fail colors
+- Hardware SPI @ 40MHz
+- All 4 buttons functional
+
+### 🎯 Next Steps
+1. Battery integration (LiPo + charging circuit)
+2. Enclosure design and 3D printing
+3. Optional: Tilt sensor for shake-to-roll
+4. Power management (sleep mode, battery indicator)
 
 ---
-*Last Updated: 2026-01-20*
+*Last Updated: 2026-01-25*
 *Claude Code Development Session*

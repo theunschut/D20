@@ -166,34 +166,35 @@ Based on current progress and hardware:
 
 ## 📋 Suggested Implementation Order
 
-### Phase 1 (Next Session - Before XIAO Migration)
+### Phase 1 (Software Features - Current Hardware)
 - [ ] Roll statistics tracking
 - [ ] Enhanced crit/fail animations
 - [ ] Modifier support
-
-**Rationale**: These features can be developed and tested on Arduino Nano ESP32 before migrating to XIAO.
-
-### Phase 2 (After XIAO Migration & Soldering)
-- [ ] Tilt sensor integration
-- [ ] Sleep mode
-- [ ] Battery indicator
-
-**Rationale**: These features require the final hardware (XIAO with battery support).
-
-### Phase 3 (Polish & Optional)
-- [ ] Themed color schemes
-- [ ] Brightness control
 - [ ] Roll history scroll
 - [ ] Dice lock mode
 
-**Rationale**: Nice-to-have features that enhance user experience.
+**Rationale**: These features work with current hardware (XIAO ESP32-C3 + display + 4 buttons).
+
+### Phase 2 (Power Management)
+- [ ] Sleep mode
+- [ ] Battery indicator
+- [ ] Brightness control
+
+**Rationale**: Essential for battery-powered portable operation. XIAO ESP32-C3 has built-in LiPo charging.
+
+### Phase 3 (Hardware Additions)
+- [ ] Tilt sensor integration (SW-520D)
+- [ ] Sound effects (piezo buzzer)
+- [ ] Enclosure design and 3D printing
+
+**Rationale**: Requires additional hardware components and physical integration.
 
 ### Phase 4 (Advanced/Future)
-- [ ] Sound effects (requires piezo buzzer)
 - [ ] Bluetooth logging (requires app development)
 - [ ] D&D specific modes (initiative tracker, death saves)
+- [ ] Themed color schemes
 
-**Rationale**: More complex features that require additional hardware or development.
+**Rationale**: More complex features that require significant development effort.
 
 ---
 
@@ -207,7 +208,7 @@ Add your own feature ideas here:
 
 ## ✅ Completed Features
 
-### Current Implementation (v1.0)
+### Current Implementation (v1.0 - XIAO ESP32-C3)
 - [x] Multiple dice types (D4, D6, D8, D10, D12, D20, D100)
 - [x] Multi-dice rolls (1-4 dice at once)
 - [x] Advantage/Disadvantage mode (D&D 5e)
@@ -217,10 +218,12 @@ Add your own feature ideas here:
 - [x] Last roll number display
 - [x] Color-coded dice types
 - [x] Dual-circle border design
-- [x] 4-button control system
+- [x] 4-button control system (Roll, Mode, Qty+, Qty-)
 - [x] Long-press for mode switching
+- [x] Migrated to XIAO ESP32-C3 with hardware SPI
+- [x] Compact form factor (21mm x 17.8mm board)
 
 ---
 
-*Last Updated: 2026-01-20*
-*Based on current hardware: Arduino Nano ESP32 (dev) / XIAO ESP32-C3 (target)*
+*Last Updated: 2026-01-25*
+*Current hardware: XIAO ESP32-C3 with hardware SPI @ 40MHz*

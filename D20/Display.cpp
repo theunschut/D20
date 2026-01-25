@@ -3,20 +3,23 @@
  */
 
 #include "Display.h"
+#include "Config.h"
+#include "BatteryMonitor.h"
 
 void initDisplay() {
   Serial.println("Starting display...");
 
-  // Initialize with maximum SPI speed (40MHz)
-  tft.begin(40000000);
+  // Initialize with hardware SPI
+  tft.begin(SPI_SPEED);
 
-  // Small delay to ensure display is fully initialized
-  delay(50);
+  // Delay to ensure display is fully initialized
+  delay(100);
 
-  // Clear screen - should be MUCH faster with hardware SPI
+  // Clear screen
   tft.fillScreen(COLOR_BG);
 
-  Serial.println("Display initialized with hardware SPI @ 40MHz");
+  Serial.println("Display initialized with HARDWARE SPI @ 40MHz");
+  Serial.println("Display init SUCCESS");
 }
 
 void drawWelcomeScreen(DiceType diceType, int quantity, RollMode mode, int lastRoll) {
@@ -85,6 +88,9 @@ void drawWelcomeScreen(DiceType diceType, int quantity, RollMode mode, int lastR
   // Draw circle border
   tft.drawCircle(120, 120, 115, diceColor);
   tft.drawCircle(120, 120, 113, diceColor);
+
+  // Draw battery indicator
+  drawBatteryIndicator();
 
   Serial.print("Welcome screen drawn - ");
   Serial.print(quantity);
@@ -221,6 +227,9 @@ void displayMultiDiceResult(int total, int rolls[], int quantity, int maxValue, 
     tft.print("Last: ");
     tft.print(previousNumber);
   }
+
+  // Draw battery indicator
+  drawBatteryIndicator();
 }
 
 void displayAdvDisResult(int result, int roll1, int roll2, RollMode mode, DiceType diceType, int previousNumber) {
@@ -281,4 +290,61 @@ void displayAdvDisResult(int result, int roll1, int roll2, RollMode mode, DiceTy
     tft.print("Last: ");
     tft.print(previousNumber);
   }
+
+  // Draw battery indicator
+  drawBatteryIndicator();
 }
+
+void drawBatteryIndicator() {
+  // Battery icon position (top-right corner)
+  int x = 200;
+  int y = 10;
+  int width = 28;
+  int height = 14;
+  int tipWidth = 3;
+
+  // Get battery info
+  int percentage = getBatteryPercentage();
+  bool onBattery = isOnBattery();
+
+  // Don't draw if on USB power
+  if (!onBattery) {
+    return;
+  }
+
+  // Choose color based on battery level
+  uint16_t batteryColor;
+  if (percentage <= 20) {
+    batteryColor = 0xF800;  // Red - low battery
+  } else if (percentage <= 50) {
+    batteryColor = 0xFFE0;  // Yellow - medium
+  } else {
+    batteryColor = 0x07E0;  // Green - good
+  }
+
+  // Draw battery outline
+  tft.drawRect(x, y, width, height, batteryColor);
+
+  // Draw battery tip
+  tft.fillRect(x + width, y + 4, tipWidth, height - 8, batteryColor);
+
+  // Draw fill level (inside battery)
+  int fillWidth = (width - 4) * percentage / 100;
+  if (fillWidth > 0) {
+    tft.fillRect(x + 2, y + 2, fillWidth, height - 4, batteryColor);
+  }
+
+  // Draw percentage text below battery
+  tft.setTextSize(1);
+  tft.setTextColor(batteryColor);
+  tft.setCursor(x + 2, y + height + 2);
+  tft.print(percentage);
+  tft.print("%");
+
+  // Low battery warning indicator (flashing)
+  if (isBatteryLow() && (millis() / 500) % 2 == 0) {
+    tft.setCursor(x - 5, y);
+    tft.print("!");
+  }
+}
+
