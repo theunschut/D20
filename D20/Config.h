@@ -40,8 +40,16 @@
 // TIMING CONSTANTS
 // ============================================================================
 
-#define DEBOUNCE_DELAY    300   // Button debounce time in milliseconds
-#define LONG_PRESS_DELAY  1000  // Long press threshold in milliseconds
+#define DEBOUNCE_DELAY       1000  // Roll button/tilt sensor cooldown period (ms)
+                                    // Time after a roll before next roll allowed
+                                    // Adjust for tilt sensor sensitivity:
+                                    // - 800ms = more sensitive
+                                    // - 1000ms = normal (recommended)
+                                    // - 1500ms = less sensitive
+                                    // - 2000ms = very deliberate
+#define TILT_REST_TIME       300   // Tilt sensor must be stable/flat for this long (ms)
+                                    // before being ready for next roll
+#define LONG_PRESS_DELAY     1000  // Long press threshold in milliseconds
 
 // ============================================================================
 // WIRING REFERENCE
@@ -70,6 +78,22 @@
  *   SW-520D Pin 2 → GND
  *   No polarity - pins are interchangeable
  *   Works with INPUT_PULLUP (same as buttons)
+ *
+ *   How it works:
+ *   1. Shake device → sensor tilts → triggers roll
+ *   2. Enter cooldown (DEBOUNCE_DELAY = 1000ms default)
+ *   3. Sensor must be stable at rest for TILT_REST_TIME (300ms)
+ *   4. Once stable → ready for next shake
+ *
+ *   This prevents:
+ *   - Button press vibrations triggering rolls
+ *   - Tiny bumps/movements causing rolls
+ *   - Continuous rolling from unstable sensor
+ *
+ *   Sensitivity adjustments (in "TIMING CONSTANTS" section):
+ *   - DEBOUNCE_DELAY: Cooldown after roll (800-2000ms)
+ *   - TILT_REST_TIME: How long sensor must be flat (200-500ms)
+ *   - Increase both for less sensitivity, decrease for more
  *
  * Battery Monitor (Voltage Divider):
  *   BAT+ → 200kΩ resistor → A0 (D0/GPIO2) → 200kΩ resistor → GND

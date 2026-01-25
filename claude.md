@@ -367,6 +367,8 @@ The GC9A01 display ecosystem has significant library compatibility issues in 202
 15. **GPIO2 is a strapping pin on ESP32-C3** - D0 (GPIO2) is used during boot and may not work reliably for critical inputs like the main roll button. Use GPIO20 (D7) or other non-strapping pins for primary inputs.
 16. **Windows-specific: Never use `2>nul` in bash** - On Windows, using `2>nul` in Git Bash/WSL creates a file called `nul` which is a reserved name and extremely hard to remove. Always use `2>/dev/null` for stderr redirection in bash.
 17. **Refactor early while code is fresh** - Did Step 1 refactoring (Config, ButtonHandler, GameState) at 283 lines, resulting in clean 53-line main file. Waiting longer would have made refactoring harder and riskier. The "one refactor ahead" approach (refactor before adding complex features) provides good foundation without over-engineering.
+18. **Read initial button/sensor states at startup** - When using tilt sensors or buttons with INPUT_PULLUP, always read the actual initial state in initialization code. Otherwise, if the device is tilted/pressed at power-on, the first loop() iteration will detect a false transition and trigger unwanted actions. Reading initial state prevents power-on triggers.
+19. **Tilt sensor sensitivity control** - SW-520D tilt sensors are extremely sensitive and bounce rapidly (ball makes/breaks contact many times per shake, even during rest). Final solution requires TWO safeguards: (1) Long cooldown period after each roll (DEBOUNCE_DELAY = 1000ms default), (2) Sensor must be STABLE at rest for TILT_REST_TIME (300ms default) before being ready for next roll. Brief HIGH states during bouncing don't count as "returned to rest". This prevents button vibrations and tiny bumps from triggering rolls while allowing deliberate shakes. Serial debug messages show "Shake detected" and "ready" status. Adjust both timing constants in Config.h for desired sensitivity.
 
 ## Project Status
 
@@ -389,11 +391,12 @@ The GC9A01 display ecosystem has significant library compatibility issues in 202
 5. ✅ All 4 buttons mapped to available GPIOs
 6. ✅ **Hardware VERIFIED and WORKING** - Hardware SPI @ 40MHz
 7. ✅ **Step 1 Refactoring COMPLETE** - Modular code structure (Config, ButtonHandler, GameState)
-8. ⏳ Design/create enclosure for portable use
-9. ⏳ Add battery for truly portable operation
+8. ✅ **Battery Monitor Implemented** - BatteryMonitor module ready (needs voltage divider hardware)
+9. ⏳ Add battery + voltage divider (waiting for 602030 LiPo + TP4056)
+10. ⏳ Design/create enclosure for portable use
 
-**Current**: Fully functional XIAO ESP32-C3 with modular codebase ready for feature expansion!
-**Next**: Choose next feature (statistics, tilt sensor, sleep mode) or enclosure design.
+**Current**: Fully functional XIAO ESP32-C3 with battery monitoring ready to test!
+**Next**: Test battery monitor when LiPo arrives, then enclosure design or additional features.
 
 ---
 
@@ -405,11 +408,12 @@ The D20 project uses a clean modular architecture for maintainability and future
 
 ```
 D20/
-├─ D20.ino (53 lines)          - Main coordination only
-├─ Config.h (67 lines)         - Hardware configuration & constants
+├─ D20.ino (55 lines)          - Main coordination only
+├─ Config.h (79 lines)         - Hardware configuration & constants
 ├─ ButtonHandler.h/cpp (97)    - Button input handling
 ├─ GameState.h/cpp (147)       - Game logic & state management
-├─ Display.h/cpp (285)         - Display rendering
+├─ BatteryMonitor.h/cpp (140)  - Battery voltage monitoring & percentage
+├─ Display.h/cpp (350)         - Display rendering + battery indicator
 └─ DiceTypes.h/cpp (44)        - Type definitions & utilities
 ```
 
@@ -440,12 +444,20 @@ D20/
    - Random number generation
    - Ready for statistics/history features
 
-5. **Display.h/cpp** - Display rendering
+5. **BatteryMonitor.h/cpp** - Battery monitoring
+   - Reads battery voltage via A0 (D0/GPIO2) with voltage divider
+   - Converts voltage to percentage (LiPo curve: 4.2V=100%, 3.0V=0%)
+   - Low battery detection and warning
+   - Detects USB vs battery power
+   - Throttled updates (every 5 seconds) to save power
+
+6. **Display.h/cpp** - Display rendering
    - 5+ display-related functions (`initDisplay`, `drawWelcomeScreen`, `animatedRoll`, etc.)
+   - Battery indicator drawing (top-right corner)
    - Clear separation of concerns (display vs game logic)
    - Could be reused in other projects with similar displays
 
-6. **DiceTypes.h/cpp** - Type definitions
+7. **DiceTypes.h/cpp** - Type definitions
    - Centralized type definitions (`DiceType`, `RollMode` enums)
    - 3 utility functions (`getDiceName`, `getDiceMax`, `getDiceColor`)
    - Color constants
