@@ -32,56 +32,84 @@ void drawWelcomeScreen(DiceType diceType, int quantity, RollMode mode, int lastR
   firstBoot = false;
 
   // Get dice info
-  String diceName = getDiceName(diceType);
   uint16_t diceColor = getDiceColor(diceType);
 
-  // Calculate text bounds for both parts to center them together
+  // Layout: Quantity at TOP center, large dice bitmap at CENTER/BOTTOM
   int16_t x1, y1;
-  uint16_t w, h, qtyW, qtyH, diceW, diceH;
+  uint16_t w, h;
 
+  // Draw quantity number at TOP
   String qtyStr = String(quantity);
-  tft.setTextSize(4);  // Smaller size for quantity
-  tft.getTextBounds(qtyStr.c_str(), 0, 0, &x1, &y1, &qtyW, &qtyH);
-
-  tft.setTextSize(5);  // Larger size for dice name
-  tft.getTextBounds(diceName.c_str(), 0, 0, &x1, &y1, &diceW, &diceH);
-
-  // Total width and use larger height
-  uint16_t totalW = qtyW + diceW;
-  uint16_t maxH = max(qtyH, diceH);
-
-  int startX = (240 - totalW) / 2;
-  int startY = (240 - maxH) / 2 - 30;
-
+  tft.setTextSize(4);  // Smaller to fit with huge 220x220 dice
+  tft.getTextBounds(qtyStr.c_str(), 0, 0, &x1, &y1, &w, &h);
   tft.setTextColor(diceColor);
-
-  // Draw quantity (smaller)
-  tft.setTextSize(4);
-  tft.setCursor(startX, startY + (diceH - qtyH));  // Align baseline with dice name
+  tft.setCursor((240 - w) / 2, 15);  // Top center (lowered by 10px total)
   tft.print(qtyStr);
 
-  // Draw dice name (larger)
-  tft.setTextSize(5);
-  tft.setCursor(startX + qtyW, startY);
-  tft.print(diceName);
+  // Draw large dice bitmap at center (220x220 pixels - screen-filling!)
+  int diceY = 10;  // Start very close to top to fit 220px dice
 
-  // Draw mode indicator (ADV/DIS)
+  // Get bitmap data based on dice type
+  const unsigned char* bitmap = nullptr;
+  int bitmapWidth = 100;
+  int bitmapHeight = 100;
+
+  switch (diceType) {
+    case DICE_D4:
+      bitmap = bitmap_DICE_D4;
+      bitmapWidth = bitmap_DICE_D4_width;
+      bitmapHeight = bitmap_DICE_D4_height;
+      break;
+    case DICE_D6:
+      bitmap = bitmap_DICE_D6;
+      bitmapWidth = bitmap_DICE_D6_width;
+      bitmapHeight = bitmap_DICE_D6_height;
+      break;
+    case DICE_D8:
+      bitmap = bitmap_DICE_D8;
+      bitmapWidth = bitmap_DICE_D8_width;
+      bitmapHeight = bitmap_DICE_D8_height;
+      break;
+    case DICE_D10:
+      bitmap = bitmap_DICE_D10;
+      bitmapWidth = bitmap_DICE_D10_width;
+      bitmapHeight = bitmap_DICE_D10_height;
+      break;
+    case DICE_D12:
+      bitmap = bitmap_DICE_D12;
+      bitmapWidth = bitmap_DICE_D12_width;
+      bitmapHeight = bitmap_DICE_D12_height;
+      break;
+    case DICE_D20:
+      bitmap = bitmap_DICE_D20;
+      bitmapWidth = bitmap_DICE_D20_width;
+      bitmapHeight = bitmap_DICE_D20_height;
+      break;
+  }
+
+  // Draw the bitmap (if not D100)
+  if (bitmap != nullptr) {
+    int bitmapX = (240 - bitmapWidth) / 2;
+    tft.drawBitmap(bitmapX, diceY, bitmap, bitmapWidth, bitmapHeight, diceColor);
+  }
+
+  // Draw mode indicator (ADV/DIS) if active
   if (mode != NORMAL) {
     tft.setTextSize(2);
     tft.setTextColor(mode == ADVANTAGE ? COLOR_ADVANTAGE : COLOR_DISADVANTAGE);
     String modeText = mode == ADVANTAGE ? "ADV" : "DIS";
     tft.getTextBounds(modeText.c_str(), 0, 0, &x1, &y1, &w, &h);
-    tft.setCursor((240 - w) / 2, (240 - h) / 2);
+    tft.setCursor((240 - w) / 2, 205);  // Bottom area
     tft.println(modeText);
   }
 
   // Draw last roll if it exists
-  if (lastRoll > 0) {
+  if (lastRoll > 0 && mode == NORMAL) {
     tft.setTextColor(COLOR_TEXT);
-    String lastText = String(lastRoll);
-    tft.setTextSize(3);
+    String lastText = "Last: " + String(lastRoll);
+    tft.setTextSize(1);
     tft.getTextBounds(lastText.c_str(), 0, 0, &x1, &y1, &w, &h);
-    tft.setCursor((240 - w) / 2, (240 - h) / 2 + 50);
+    tft.setCursor((240 - w) / 2, 220);  // Very bottom
     tft.println(lastText);
   }
 
@@ -94,7 +122,8 @@ void drawWelcomeScreen(DiceType diceType, int quantity, RollMode mode, int lastR
 
   Serial.print("Welcome screen drawn - ");
   Serial.print(quantity);
-  Serial.println(diceName);
+  Serial.print(" x ");
+  Serial.println(getDiceName(diceType));
 }
 
 void animatedRoll(int finalNumber, int maxValue, DiceType diceType) {
@@ -153,28 +182,14 @@ void displayMultiDiceResult(int total, int rolls[], int quantity, int maxValue, 
   tft.drawCircle(120, 120, 115, diceColor);
   tft.drawCircle(120, 120, 113, diceColor);
 
-  // Draw dice type with quantity at top (quantity smaller)
-  String qtyStr = String(quantity);
-  String diceName = getDiceName(diceType);
-
-  uint16_t qtyW, qtyH, diceW, diceH;
-  tft.setTextSize(1);
-  tft.getTextBounds(qtyStr.c_str(), 0, 0, &x1, &y1, &qtyW, &qtyH);
-
+  // Draw quantity + dice type label at top
+  String qtyStr = String(quantity) + getDiceName(diceType);
   tft.setTextSize(2);
-  tft.getTextBounds(diceName.c_str(), 0, 0, &x1, &y1, &diceW, &diceH);
-
-  uint16_t totalW = qtyW + diceW;
-  int startX = (240 - totalW) / 2;
+  tft.getTextBounds(qtyStr.c_str(), 0, 0, &x1, &y1, &w, &h);
 
   tft.setTextColor(diceColor);
-  tft.setTextSize(1);
-  tft.setCursor(startX, 20 + (diceH - qtyH));
+  tft.setCursor((240 - w) / 2, 20);
   tft.print(qtyStr);
-
-  tft.setTextSize(2);
-  tft.setCursor(startX + qtyW, 20);
-  tft.print(diceName);
 
   // Draw individual rolls breakdown at bottom with colors
   tft.setTextSize(1);
@@ -266,10 +281,12 @@ void displayAdvDisResult(int result, int roll1, int roll2, RollMode mode, DiceTy
   tft.drawCircle(120, 120, 113, diceColor);
 
   // Draw mode and dice type at top
-  tft.setTextSize(2);
-  tft.setTextColor(mode == ADVANTAGE ? COLOR_ADVANTAGE : COLOR_DISADVANTAGE);
+  uint16_t modeColor = mode == ADVANTAGE ? COLOR_ADVANTAGE : COLOR_DISADVANTAGE;
   String modeText = mode == ADVANTAGE ? "ADV " : "DIS ";
   modeText += getDiceName(diceType);
+
+  tft.setTextSize(2);
+  tft.setTextColor(modeColor);
   tft.getTextBounds(modeText.c_str(), 0, 0, &x1, &y1, &w, &h);
   tft.setCursor((240 - w) / 2, 20);
   tft.print(modeText);
@@ -347,4 +364,5 @@ void drawBatteryIndicator() {
     tft.print("!");
   }
 }
+
 

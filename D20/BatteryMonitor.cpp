@@ -25,6 +25,7 @@ static float currentVoltage = 0.0f;
 static int currentPercentage = 0;
 static unsigned long lastUpdateTime = 0;
 static bool batteryPresent = false;
+static bool prevBatteryPresent = false;  // Track state changes
 
 void initBatteryMonitor() {
   pinMode(BATTERY_PIN, INPUT);
@@ -56,8 +57,10 @@ void updateBatteryReading() {
   // Convert to actual battery voltage (compensate for voltage divider)
   currentVoltage = (avgMillivolts / 1000.0f) * VOLTAGE_DIVIDER_RATIO;
 
-  // Detect if battery is connected (USB power shows ~0V on battery pin)
-  if (currentVoltage < 2.5f) {
+  // Detect if battery is connected
+  // Use 3.5V threshold to avoid false positives from floating pin noise
+  // Real LiPo battery will always be >= 3.0V (empty) to 4.2V (full)
+  if (currentVoltage < 3.5f) {
     batteryPresent = false;
     currentPercentage = 100;  // Show full when on USB
     currentVoltage = 0.0f;
@@ -81,9 +84,10 @@ void updateBatteryReading() {
     }
   }
 
-  // Debug output
-  Serial.print("Battery: ");
+  // Debug output (print USB power once, battery continuously)
   if (batteryPresent) {
+    // Always print battery status
+    Serial.print("Battery: ");
     Serial.print(currentVoltage, 2);
     Serial.print("V (");
     Serial.print(currentPercentage);
@@ -93,8 +97,13 @@ void updateBatteryReading() {
       Serial.println("⚠️ LOW BATTERY WARNING!");
     }
   } else {
-    Serial.println("USB Power");
+    // Only print USB power when state changes
+    if (prevBatteryPresent) {
+      Serial.println("Battery: USB Power");
+    }
   }
+
+  prevBatteryPresent = batteryPresent;
 }
 
 float getBatteryVoltage() {

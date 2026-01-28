@@ -12,7 +12,6 @@ String getDiceName(DiceType type) {
     case DICE_D10:  return "D10";
     case DICE_D12:  return "D12";
     case DICE_D20:  return "D20";
-    case DICE_D100: return "D100";
     default:        return "D20";
   }
 }
@@ -25,7 +24,6 @@ int getDiceMax(DiceType type) {
     case DICE_D10:  return 10;
     case DICE_D12:  return 12;
     case DICE_D20:  return 20;
-    case DICE_D100: return 100;
     default:        return 20;
   }
 }
@@ -38,7 +36,6 @@ uint16_t getDiceColor(DiceType type) {
     case DICE_D10:  return COLOR_D10;
     case DICE_D12:  return COLOR_D12;
     case DICE_D20:  return COLOR_D20;
-    case DICE_D100: return COLOR_D100;
     default:        return COLOR_D20;
   }
 }

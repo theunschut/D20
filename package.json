@@ -1,0 +1,15 @@
+{
+  "name": "d20-digital-dice",
+  "version": "1.0.0",
+  "description": "Digital D20 dice roller - SVG to bitmap conversion tools",
+  "scripts": {
+    "convert-bitmaps": "node Resources/convert_svg_to_bitmap.js"
+  },
+  "keywords": ["arduino", "esp32", "dice", "svg", "bitmap"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "jimp": "^1.6.0",
+    "sharp": "^0.33.5"
+  }
+}

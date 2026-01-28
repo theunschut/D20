@@ -21,5 +21,6 @@ void toggleRollMode();
 void increaseDiceQuantity();
 void decreaseDiceQuantity();
 void rollDice();
+void checkAutoReturn();  // Check if should return to welcome screen
 
 #endif

@@ -14,6 +14,11 @@ RollMode rollMode = NORMAL;
 int currentNumber = 0;
 int previousNumber = 0;
 
+// Auto-return timer
+static unsigned long lastRollTime = 0;
+static bool resultDisplayed = false;
+#define AUTO_RETURN_DELAY 5000  // 5 seconds
+
 void initGameState() {
   currentDiceType = DICE_D20;
   diceQuantity = 1;
@@ -37,6 +42,9 @@ void changeDiceType() {
   previousNumber = 0;
   diceQuantity = 1;
 
+  // Cancel auto-return (user is making changes)
+  resultDisplayed = false;
+
   // Show new dice type
   drawWelcomeScreen(currentDiceType, diceQuantity, rollMode, currentNumber);
 }
@@ -57,6 +65,9 @@ void toggleRollMode() {
   // Reset quantity when changing roll mode
   diceQuantity = 1;
 
+  // Cancel auto-return (user is making changes)
+  resultDisplayed = false;
+
   // Update display
   drawWelcomeScreen(currentDiceType, diceQuantity, rollMode, currentNumber);
 }
@@ -66,6 +77,10 @@ void increaseDiceQuantity() {
     diceQuantity++;
     Serial.print("Quantity: ");
     Serial.println(diceQuantity);
+
+    // Cancel auto-return (user is making changes)
+    resultDisplayed = false;
+
     drawWelcomeScreen(currentDiceType, diceQuantity, rollMode, currentNumber);
   }
 }
@@ -75,6 +90,10 @@ void decreaseDiceQuantity() {
     diceQuantity--;
     Serial.print("Quantity: ");
     Serial.println(diceQuantity);
+
+    // Cancel auto-return (user is making changes)
+    resultDisplayed = false;
+
     drawWelcomeScreen(currentDiceType, diceQuantity, rollMode, currentNumber);
   }
 }
@@ -143,5 +162,18 @@ void rollDice() {
 
     // Display final result
     displayMultiDiceResult(currentNumber, rolls, diceQuantity, maxValue, currentDiceType, previousNumber);
+  }
+
+  // Start auto-return timer
+  lastRollTime = millis();
+  resultDisplayed = true;
+}
+
+void checkAutoReturn() {
+  // If result is displayed and 5 seconds have passed, return to welcome screen
+  if (resultDisplayed && (millis() - lastRollTime >= AUTO_RETURN_DELAY)) {
+    resultDisplayed = false;
+    drawWelcomeScreen(currentDiceType, diceQuantity, rollMode, currentNumber);
+    Serial.println("Auto-returned to welcome screen");
   }
 }

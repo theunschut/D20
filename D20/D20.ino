@@ -52,5 +52,6 @@ void setup() {
 void loop() {
   updateButtons();
   updateBatteryReading();  // Throttled to every 5 seconds internally
+  checkAutoReturn();       // Auto-return to welcome screen after 5 seconds
   delay(10);
 }

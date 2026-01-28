@@ -38,3 +38,10 @@ __pycache__/
 
 # Logs
 *.log
+
+# Node.js dependencies
+node_modules/
+package-lock.json
+
+# Purchased/Licensed assets (not for public distribution)
+Resources/PolyhedralDiceSet/

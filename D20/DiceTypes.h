@@ -15,7 +15,6 @@ enum DiceType {
   DICE_D10,
   DICE_D12,
   DICE_D20,
-  DICE_D100,
   DICE_TYPE_COUNT
 };
 
@@ -33,7 +32,6 @@ enum RollMode {
 #define COLOR_D10     0xFD20  // Orange
 #define COLOR_D12     0x07E0  // Green
 #define COLOR_D20     0x07E0  // Green
-#define COLOR_D100    0x051F  // Blue
 
 // General colors
 #define COLOR_BG           0x0000  // Black

@@ -8,6 +8,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_GC9A01A.h>
 #include "DiceTypes.h"
+#include "DiceBitmaps.h"
 
 // Display object (extern - defined in main file)
 extern Adafruit_GC9A01A tft;
