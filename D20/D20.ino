@@ -4,17 +4,25 @@
  * Hardware:
  * - Seeed Studio XIAO ESP32-C3
  * - 1.28" Round TFT LCD (240x240, GC9A01 driver)
- * - 4 Buttons (Roll + Mode + Qty+/-)
+ * - MCP23017 I2C GPIO Expander (4 buttons)
+ * - MPU6050 I2C Accelerometer (shake-to-roll)
+ * - MAX17048 I2C Fuel Gauge (battery)
+ * - MicroSD Card (roll animations)
  *
- * See Config.h for complete wiring details
+ * See Config.h for pin assignments and wiring reference.
  *
  * Required Libraries:
  * - Adafruit GFX Library
  * - Adafruit GC9A01A
+ * - Adafruit MCP23X17
+ * - Adafruit MPU6050
+ * - SparkFun MAX1704x Fuel Gauge
+ * - SD (built-in)
  */
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_GC9A01A.h>
+#include <Wire.h>
 #include <SPI.h>
 #include "Config.h"
 #include "DiceTypes.h"
@@ -22,10 +30,11 @@
 #include "GameState.h"
 #include "ButtonHandler.h"
 #include "BatteryMonitor.h"
+#include "MotionDetector.h"
+#include "SDAnimations.h"
 
-// Display object - using hardware SPI
-// Constructor with only CS, DC, RST enables hardware SPI on default pins
-Adafruit_GC9A01A tft(TFT_CS, TFT_DC, TFT_RST);
+// Display — D20Display subclass exposes setWindow() for SD frame streaming
+D20Display tft(TFT_CS, TFT_DC, TFT_RST);
 
 void setup() {
   Serial.begin(115200);
@@ -34,24 +43,37 @@ void setup() {
   Serial.println("=== Digital Multi-Dice ===");
   Serial.println("Initializing...");
 
-  // Initialize all subsystems
-  initButtons();
+  // I2C bus must be started before any I2C device
+  Wire.begin(I2C_SDA, I2C_SCL);
+
+  // Display first — also starts SPI (needed before SD init)
   initDisplay();
+
+  // I2C peripherals
+  initButtons();            // MCP23017
+  initMotionDetector();     // MPU6050
+  initBatteryMonitor();     // MAX17048
+
+  // SPI peripheral (SD card — SPI already running from display init)
+  initSDAnimations();
+
+  // Game logic
   initGameState();
-  initBatteryMonitor();
 
   // Show welcome screen
   drawWelcomeScreen(currentDiceType);
+  resetActivityTimer();
 
   Serial.println("=== READY ===");
-  Serial.println("Roll button: Roll dice");
-  Serial.println("Mode button: Change dice type (long press for Adv/Dis)");
-  Serial.println("Qty +/-: Change number of dice");
+  Serial.println("Shake to roll | Mode: dice type (short) / adv-dis (long)");
+  Serial.println("Qty +/-: number of dice");
 }
 
 void loop() {
   updateButtons();
-  updateBatteryReading();  // Throttled to every 5 seconds internally
-  checkAutoReturn();       // Auto-return to welcome screen after 5 seconds
+  updateMotionDetector();
+  updateBatteryReading();   // Throttled internally
+  updateBacklight();        // Auto-dim
+  checkAutoReturn();
   delay(10);
 }

@@ -15,6 +15,9 @@ void initDisplay() {
   // Delay to ensure display is fully initialized
   delay(100);
 
+  // Initialize PWM backlight (GPIO2 is a strapping pin, safe to use after boot)
+  analogWrite(TFT_BLK, BACKLIGHT_FULL);
+
   // Clear screen
   tft.fillScreen(COLOR_BG);
 
@@ -362,6 +365,39 @@ void drawBatteryIndicator() {
   if (isBatteryLow() && (millis() / 500) % 2 == 0) {
     tft.setCursor(x - 5, y);
     tft.print("!");
+  }
+}
+
+// ============================================================================
+// Backlight / auto-dim
+// ============================================================================
+
+static uint8_t       currentBrightness = BACKLIGHT_FULL;
+static unsigned long activityTime      = 0;  // millis() of last user activity
+
+void setBacklightBrightness(uint8_t level) {
+  if (level != currentBrightness) {
+    currentBrightness = level;
+    analogWrite(TFT_BLK, level);
+  }
+}
+
+void resetActivityTimer() {
+  activityTime = millis();
+  setBacklightBrightness(BACKLIGHT_FULL);
+}
+
+void updateBacklight() {
+  if (activityTime == 0) return;  // Not yet set — stays at FULL until first activity
+
+  unsigned long idle = millis() - activityTime;
+
+  if (idle > SLEEP_TIMEOUT) {
+    setBacklightBrightness(BACKLIGHT_SLEEP);
+  } else if (idle > DIM_TIMEOUT) {
+    setBacklightBrightness(BACKLIGHT_DIM);
+  } else {
+    setBacklightBrightness(BACKLIGHT_FULL);
   }
 }
 

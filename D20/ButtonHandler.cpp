@@ -1,168 +1,117 @@
 /*
- * ButtonHandler.cpp - Button input handling with debouncing and long-press detection
- * Mode, Qty+, and Qty- use interrupts for instant response
- * Roll button/tilt sensor uses main loop for complex timing logic
+ * ButtonHandler.cpp - Button input via MCP23017 I2C GPIO expander
+ *
+ * All 4 buttons are on MCP23017 Port A (GPA0-GPA3) with internal pull-ups.
+ * Buttons pull LOW when pressed.
+ * Port A is polled each loop iteration; transitions are detected in software.
+ * MCP23017 INTA pin (GPIO20) is configured as INPUT_PULLUP for future
+ * interrupt-based sleep/wake but is not used for button detection here.
  */
 
 #include "ButtonHandler.h"
 #include "GameState.h"
 #include "Config.h"
+#include "Display.h"
+#include <Adafruit_MCP23X17.h>
 #include <Arduino.h>
 
-// Roll button/tilt sensor state (handled in main loop)
-static bool lastRollState = HIGH;
-static unsigned long lastRollTime = 0;
-static bool rollWaitingForRest = false;
-static unsigned long rollRestStartTime = 0;
-static bool rollSensorStable = false;
+static Adafruit_MCP23X17 mcp;
+static bool mcpInitialized = false;
 
-// Interrupt-driven button state (volatile for ISR access)
-static volatile unsigned long lastModeTime = 0;
-static volatile unsigned long lastQtyPlusTime = 0;
-static volatile unsigned long lastQtyMinusTime = 0;
-static volatile unsigned long modeButtonPressTime = 0;
-static volatile bool modePendingAction = false;
+// Last known port state (all HIGH = all released at init)
+static uint8_t lastPortA = 0xFF;
 
-// Constants for debouncing (defined here for ISR access)
-static const unsigned long BUTTON_DEBOUNCE = 300;  // Debounce for interrupt buttons
+// Debounce: ignore repeated presses within this window
+static unsigned long lastPressTime[4] = {0, 0, 0, 0};
+static const unsigned long BUTTON_DEBOUNCE_MS = 100;
 
-// ============================================================================
-// Interrupt Service Routines (ISRs) - must be fast and in IRAM
-// ============================================================================
-
-void IRAM_ATTR modeButtonISR() {
-  unsigned long now = millis();
-  if (now - lastModeTime > BUTTON_DEBOUNCE) {
-    modeButtonPressTime = now;
-    modePendingAction = true;
-    lastModeTime = now;
-  }
-}
-
-void IRAM_ATTR qtyPlusButtonISR() {
-  unsigned long now = millis();
-  if (now - lastQtyPlusTime > BUTTON_DEBOUNCE) {
-    increaseDiceQuantity();
-    lastQtyPlusTime = now;
-  }
-}
-
-void IRAM_ATTR qtyMinusButtonISR() {
-  unsigned long now = millis();
-  if (now - lastQtyMinusTime > BUTTON_DEBOUNCE) {
-    decreaseDiceQuantity();
-    lastQtyMinusTime = now;
-  }
-}
-
-// ============================================================================
-// Initialization
-// ============================================================================
+// Mode button long-press state machine
+static bool modePending   = false;
+static unsigned long modePressTime = 0;
+static bool modeLongDone  = false;  // true once long-press action has fired
 
 void initButtons() {
-  // Setup roll button/tilt sensor (handled in main loop)
-  pinMode(ROLL_BUTTON_PIN, INPUT_PULLUP);
+  // Configure MCP23017 interrupt pin on ESP32 (future use for sleep/wake)
+  pinMode(MCP_INT_PIN, INPUT_PULLUP);
 
-  // Setup interrupt-driven buttons
-  pinMode(MODE_BUTTON_PIN, INPUT_PULLUP);
-  pinMode(QTY_PLUS_PIN, INPUT_PULLUP);
-  pinMode(QTY_MINUS_PIN, INPUT_PULLUP);
-
-  // Attach interrupts (FALLING = button pressed, going from HIGH to LOW)
-  attachInterrupt(digitalPinToInterrupt(MODE_BUTTON_PIN), modeButtonISR, FALLING);
-  attachInterrupt(digitalPinToInterrupt(QTY_PLUS_PIN), qtyPlusButtonISR, FALLING);
-  attachInterrupt(digitalPinToInterrupt(QTY_MINUS_PIN), qtyMinusButtonISR, FALLING);
-
-  // Read initial state for roll button/tilt sensor
-  delay(100);  // Let pins stabilize
-  lastRollState = digitalRead(ROLL_BUTTON_PIN);
-
-  // If roll sensor is already tilted at power-on, set waiting flag
-  if (lastRollState == LOW) {
-    rollWaitingForRest = true;
-    rollRestStartTime = 0;
-    rollSensorStable = false;
-    Serial.println("⚠️ Tilt sensor is tilted at power-on - waiting for stable rest position");
-  } else {
-    // Sensor is at rest at power-on - immediately ready
-    rollWaitingForRest = false;
-    rollSensorStable = true;
-    Serial.println("✓ Tilt sensor at rest - ready");
+  // Initialize MCP23017 on I2C (default address 0x20)
+  if (!mcp.begin_I2C()) {
+    Serial.println("ERROR: MCP23017 not found on I2C!");
+    return;
   }
 
-  Serial.println("Buttons initialized (Mode/Qty on interrupts)");
-  Serial.print("Roll/Tilt sensor: ");
-  Serial.println(lastRollState == HIGH ? "UP" : "DOWN");
+  // Configure button pins as inputs with internal pull-ups
+  mcp.pinMode(MCP_BTN_SPARE,     INPUT_PULLUP);
+  mcp.pinMode(MCP_BTN_MODE,      INPUT_PULLUP);
+  mcp.pinMode(MCP_BTN_QTY_PLUS,  INPUT_PULLUP);
+  mcp.pinMode(MCP_BTN_QTY_MINUS, INPUT_PULLUP);
+
+  mcpInitialized = true;
+
+  // Read initial state so we don't fire spurious transitions on first loop
+  lastPortA = mcp.readGPIO(0);
+
+  Serial.println("MCP23017 buttons initialized");
 }
 
-// ============================================================================
-// Main Update Loop
-// ============================================================================
-
 void updateButtons() {
-  unsigned long currentTime = millis();
-  bool rollState = digitalRead(ROLL_BUTTON_PIN);
+  if (!mcpInitialized) return;
 
-  // ========== Roll Button / Tilt Sensor (with stable rest requirement) ==========
-  // The tilt sensor must be STABLE at rest (HIGH) for TILT_REST_TIME before next roll
-  // This prevents brief bounces from clearing the "waiting for rest" flag
+  uint8_t portA = mcp.readGPIO(0);  // Read all 8 pins of Port A in one I2C transaction
+  unsigned long now = millis();
 
-  if (rollWaitingForRest) {
-    // Currently in cooldown - waiting for stable rest
-    if (rollState == HIGH) {
-      // Sensor is at rest - check if it's been stable
-      if (rollRestStartTime == 0) {
-        // Just went to rest - start timer
-        rollRestStartTime = currentTime;
-        rollSensorStable = false;
-      } else if (!rollSensorStable && (currentTime - rollRestStartTime >= TILT_REST_TIME)) {
-        // Been stable at rest for required time - ready for next roll
-        rollSensorStable = true;
-        rollWaitingForRest = false;
-        Serial.println("✓ Tilt sensor ready");
+  // Detect HIGH→LOW (press) transitions for each button
+  for (int i = 0; i < 4; i++) {
+    bool currentlyPressed = !((portA >> i) & 1);   // LOW = pressed
+    bool wasPressed        = !((lastPortA >> i) & 1);
+
+    if (currentlyPressed && !wasPressed) {
+      // Rising edge of press — apply debounce
+      if (now - lastPressTime[i] < BUTTON_DEBOUNCE_MS) continue;
+      lastPressTime[i] = now;
+
+      resetActivityTimer();  // Any button press resets the backlight dim timer
+
+      switch (i) {
+        case MCP_BTN_SPARE:
+          Serial.println("Spare button pressed");
+          break;
+
+        case MCP_BTN_MODE:
+          // Start long-press detection
+          modePending   = true;
+          modePressTime = now;
+          modeLongDone  = false;
+          break;
+
+        case MCP_BTN_QTY_PLUS:
+          increaseDiceQuantity();
+          break;
+
+        case MCP_BTN_QTY_MINUS:
+          decreaseDiceQuantity();
+          break;
       }
-    } else {
-      // Sensor tilted again before stable - reset timer
-      rollRestStartTime = 0;
-      rollSensorStable = false;
     }
   }
 
-  if (rollState == LOW && lastRollState == HIGH && !rollWaitingForRest) {
-    // Tilt detected AND sensor is ready - check debounce and trigger
-    if (currentTime - lastRollTime > DEBOUNCE_DELAY) {
-      Serial.println("🎲 Shake detected - rolling!");
-      rollDice();
-      lastRollTime = currentTime;
-      rollWaitingForRest = true;  // Enter cooldown - must return to stable rest
-      rollRestStartTime = 0;
-      rollSensorStable = false;
-    }
-  }
+  // --- Mode button long-press state machine ---
+  if (modePending) {
+    bool modeStillHeld = !((portA >> MCP_BTN_MODE) & 1);
 
-  lastRollState = rollState;
-
-  // ========== Mode Button (interrupt-driven with long-press detection) ==========
-  // ISR sets modePendingAction flag, we handle long-press here
-  if (modePendingAction) {
-    bool modeState = digitalRead(MODE_BUTTON_PIN);
-
-    // Wait to see if it's held (long press) or released (short press)
-    while (modeState == LOW && (millis() - modeButtonPressTime < LONG_PRESS_DELAY)) {
-      modeState = digitalRead(MODE_BUTTON_PIN);
-      delay(10);
-    }
-
-    if (millis() - modeButtonPressTime >= LONG_PRESS_DELAY) {
-      // Long press detected
+    if (!modeStillHeld) {
+      // Button released
+      if (!modeLongDone) {
+        changeDiceType();   // Short press
+      }
+      modePending  = false;
+      modeLongDone = false;
+    } else if (!modeLongDone && (now - modePressTime >= LONG_PRESS_DELAY)) {
+      // Held past threshold while still down — long press
       toggleRollMode();
-    } else {
-      // Short press (button was released)
-      changeDiceType();
+      modeLongDone = true;  // Prevent re-firing while still held
     }
-
-    modePendingAction = false;
   }
 
-  // Qty+/- buttons are fully handled by interrupts, no polling needed!
+  lastPortA = portA;
 }

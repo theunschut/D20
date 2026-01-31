@@ -1,115 +1,138 @@
 /*
  * Config.h - Hardware configuration and constants for XIAO ESP32-C3
+ *
+ * Hardware:
+ * - XIAO ESP32-C3
+ * - GC9A01 1.28" Round TFT (SPI)
+ * - MCP23017 I2C GPIO Expander (buttons)
+ * - MPU6050 I2C Accelerometer/Gyroscope (shake-to-roll)
+ * - MAX17048 I2C LiPo Fuel Gauge (battery monitoring)
+ * - MicroSD Card (SPI, animations)
  */
 
 #ifndef CONFIG_H
 #define CONFIG_H
 
 // ============================================================================
-// HARDWARE CONFIGURATION - XIAO ESP32-C3
+// SPI PINS (Hardware SPI - fixed on XIAO ESP32-C3)
 // ============================================================================
+// D8  = GPIO8  → SPI SCK  (auto-used)
+// D9  = GPIO9  → SPI MISO (auto-used)
+// D10 = GPIO10 → SPI MOSI (auto-used)
 
-// Display pins (IMPORTANT: Use GPIO numbers, not D-numbers!)
+// Display pins
 #define TFT_CS    5   // D3 = GPIO5 - Chip Select
 #define TFT_DC    4   // D2 = GPIO4 - Data/Command
 #define TFT_RST   3   // D1 = GPIO3 - Reset
-// Hardware SPI auto-uses: GPIO8 (D8/SCK), GPIO10 (D10/MOSI)
+#define TFT_BLK   2   // D0 = GPIO2 - Backlight PWM (strapping pin, safe after boot)
 
-// Button pins (IMPORTANT: Use GPIO numbers, not D-numbers!)
-#define ROLL_BUTTON_PIN   20  // D7 = GPIO20 - Roll dice (or SW-520D tilt sensor)
-#define MODE_BUTTON_PIN   21  // D6 = GPIO21 - Change dice type (long press for Adv/Dis)
-#define QTY_PLUS_PIN      6   // D4 = GPIO6  - Increase dice quantity
-#define QTY_MINUS_PIN     7   // D5 = GPIO7  - Decrease dice quantity
-
-// Note: ROLL_BUTTON_PIN can be replaced with SW-520D tilt sensor (shake to roll)
-// Just connect SW-520D to D7+GND instead of button - works the same way!
-
-// Battery monitoring (IMPORTANT: Use GPIO numbers, not D-numbers!)
-#define BATTERY_PIN       2   // D0 = GPIO2 (A0) - Battery voltage via voltage divider
-
-// Display configuration
-#define SPI_SPEED         40000000  // Hardware SPI @ 40MHz
+// SD Card
+#define SD_CS_PIN 21  // D6 = GPIO21 - SD Card Chip Select
 
 // ============================================================================
-// GAME CONSTANTS
+// I2C PINS (shared bus - MCP23017, MPU6050, MAX17048)
 // ============================================================================
-
-#define MAX_DICE_QUANTITY 4  // Maximum number of dice to roll at once
+#define I2C_SDA   6   // D4 = GPIO6
+#define I2C_SCL   7   // D5 = GPIO7
 
 // ============================================================================
-// TIMING CONSTANTS
+// MCP23017 CONFIGURATION
 // ============================================================================
+#define MCP_INT_PIN       20  // D7 = GPIO20 - INTA interrupt output (future: sleep/wake)
 
-#define DEBOUNCE_DELAY       1000  // Roll button/tilt sensor cooldown period (ms)
-                                    // Time after a roll before next roll allowed
-                                    // Adjust for tilt sensor sensitivity:
-                                    // - 800ms = more sensitive
-                                    // - 1000ms = normal (recommended)
-                                    // - 1500ms = less sensitive
-                                    // - 2000ms = very deliberate
-#define TILT_REST_TIME       300   // Tilt sensor must be stable/flat for this long (ms)
-                                    // before being ready for next roll
-#define LONG_PRESS_DELAY     1000  // Long press threshold in milliseconds
+// Button pin mapping on MCP23017 Port A (bit numbers 0-7)
+#define MCP_BTN_SPARE     0   // GPA0 - 4th button (spare, function TBD)
+#define MCP_BTN_MODE      1   // GPA1 - Mode button (short=dice type, long=adv/dis)
+#define MCP_BTN_QTY_PLUS  2   // GPA2 - Qty+ button
+#define MCP_BTN_QTY_MINUS 3   // GPA3 - Qty- button
+
+// ============================================================================
+// MPU6050 SHAKE DETECTION
+// ============================================================================
+#define SHAKE_THRESHOLD   18.0   // m/s² total magnitude to trigger shake
+                                  // At rest ≈ 9.81 (gravity). Peaks 16–23 on shake
+#define SHAKE_DURATION    200    // ms - shake must be sustained (dips OK, full rest resets)
+#define DEBOUNCE_DELAY    1000   // ms - cooldown after roll before next roll allowed
+#define REST_THRESHOLD    12.0   // m/s² - below this counts as "at rest"
+#define REST_TIME         500    // ms - must be at rest for this long before ready again
+
+// ============================================================================
+// BACKLIGHT / AUTO-DIM
+// ============================================================================
+#define BACKLIGHT_FULL    255
+#define BACKLIGHT_DIM     128
+#define BACKLIGHT_SLEEP   25
+#define DIM_TIMEOUT       10000  // ms to full→dim
+#define SLEEP_TIMEOUT     30000  // ms to dim→very dim
+
+// ============================================================================
+// SPI / GAME / BATTERY CONSTANTS
+// ============================================================================
+#define SPI_SPEED              40000000  // Hardware SPI @ 40MHz
+#define MAX_DICE_QUANTITY      4
+#define LONG_PRESS_DELAY       1000      // ms - long press threshold for Mode button
+#define AUTO_RETURN_DELAY      5000      // ms - auto-return to welcome screen
+#define BATTERY_UPDATE_INTERVAL 5000     // ms - how often to poll MAX17048
+#define BATTERY_LOW_THRESHOLD  20        // % - low battery warning level
+
+// ============================================================================
+// SD CARD ANIMATION CONFIGURATION
+// ============================================================================
+// Frame format: raw RGB565 binary, 240x240 pixels = 115,200 bytes per frame
+// Directory: /roll/
+// Naming: 001.bin, 002.bin, 003.bin, ...
+#define ANIM_FRAME_WIDTH  240
+#define ANIM_FRAME_HEIGHT 240
+#define ANIM_FRAME_SIZE   (ANIM_FRAME_WIDTH * ANIM_FRAME_HEIGHT * 2)  // bytes per frame
+#define ANIM_DEFAULT_FPS  20     // frames per second
+#define ANIM_DIR          "/roll"
 
 // ============================================================================
 // WIRING REFERENCE
 // ============================================================================
 /*
- * XIAO ESP32-C3 Wiring:
+ * XIAO ESP32-C3 Pin Summary:
  *
- * Display (GC9A01 1.28" Round):
- *   VCC → 3V3
- *   GND → GND
- *   SCL → D8  (GPIO8 - Hardware SPI Clock)
- *   SDA → D10 (GPIO10 - Hardware SPI MOSI)
- *   RES → D1  (GPIO3)
- *   DC  → D2  (GPIO4)
- *   CS  → D3  (GPIO5)
- *   BLK → 3V3
+ *   D0  (GPIO2)  → GC9A01 BLK    (PWM backlight)
+ *   D1  (GPIO3)  → GC9A01 RES    (reset)
+ *   D2  (GPIO4)  → GC9A01 DC     (data/command)
+ *   D3  (GPIO5)  → GC9A01 CS     (SPI chip select)
+ *   D4  (GPIO6)  → I2C SDA       (MCP23017 + MPU6050 + MAX17048)
+ *   D5  (GPIO7)  → I2C SCL       (MCP23017 + MPU6050 + MAX17048)
+ *   D6  (GPIO21) → SD Card CS    (SPI chip select)
+ *   D7  (GPIO20) → MCP23017 INTA (interrupt - future sleep/wake)
+ *   D8  (GPIO8)  → SPI SCK       (GC9A01 + SD card, shared)
+ *   D9  (GPIO9)  → SPI MISO      (SD card only)
+ *   D10 (GPIO10) → SPI MOSI      (GC9A01 + SD card, shared)
  *
- * Buttons:
- *   Roll    → D7 + GND (GPIO20) - OR SW-520D tilt sensor for shake-to-roll!
- *   Mode    → D6 + GND (GPIO21)
- *   Qty +   → D4 + GND (GPIO6)
- *   Qty -   → D5 + GND (GPIO7)
+ * I2C Bus (D4/D5):
+ *   MCP23017  @ 0x20  (A0=A1=A2=GND)
+ *   MPU6050   @ 0x68  (AD0=GND)
+ *   MAX17048  @ 0x36  (fixed)
  *
- * Tilt Sensor (optional - replaces roll button):
- *   SW-520D Pin 1 → D7 (GPIO20) - same as roll button!
- *   SW-520D Pin 2 → GND
- *   No polarity - pins are interchangeable
- *   Works with INPUT_PULLUP (same as buttons)
+ * MCP23017 Buttons (internal pull-ups, no external resistors):
+ *   GPA0 → Spare button → GND
+ *   GPA1 → Mode button  → GND
+ *   GPA2 → Qty+ button  → GND
+ *   GPA3 → Qty- button  → GND
+ *   A0, A1, A2 → GND    (sets address 0x20)
+ *   RESET → 3V3
+ *   INTA  → D7 (GPIO20)
  *
- *   How it works:
- *   1. Shake device → sensor tilts → triggers roll
- *   2. Enter cooldown (DEBOUNCE_DELAY = 1000ms default)
- *   3. Sensor must be stable at rest for TILT_REST_TIME (300ms)
- *   4. Once stable → ready for next shake
+ * MPU6050:
+ *   VCC→3V3, GND→GND, SDA→D4, SCL→D5, AD0→GND
+ *   INT, XDA, XCL → not connected
  *
- *   This prevents:
- *   - Button press vibrations triggering rolls
- *   - Tiny bumps/movements causing rolls
- *   - Continuous rolling from unstable sensor
+ * MAX17048:
+ *   VCC→3V3, GND→GND, SDA→D4, SCL→D5, CELL→Battery+
+ *   ALRT, QSTRT → not connected
  *
- *   Sensitivity adjustments (in "TIMING CONSTANTS" section):
- *   - DEBOUNCE_DELAY: Cooldown after roll (800-2000ms)
- *   - TILT_REST_TIME: How long sensor must be flat (200-500ms)
- *   - Increase both for less sensitivity, decrease for more
+ * SD Card Module:
+ *   VCC→3V3, GND→GND, MISO→D9, MOSI→D10, SCK→D8, CS→D6
  *
- * Battery Monitor (Voltage Divider):
- *   BAT+ → 200kΩ resistor → A0 (D0/GPIO2) → 200kΩ resistor → GND
- *   This divides battery voltage by 2 (4.2V → 2.1V safe for ADC)
- *
- * Battery Power (on back of XIAO):
- *   LiPo (+) → BAT+ pad
- *   LiPo (-) → BAT- pad (or GND pin)
- *   OR use TP4056 charger module:
- *     LiPo → TP4056 B+/B-
- *     TP4056 OUT+ → XIAO BAT+
- *     TP4056 OUT- → XIAO GND
- *
- * Notes:
- *   - D0 (GPIO2) used for battery monitoring (analog input)
- *   - D9 (GPIO9) is hardware SPI MISO - kept free
+ * Display (GC9A01):
+ *   VCC→3V3, GND→GND, SCL→D8, SDA→D10, RES→D1, DC→D2, CS→D3
+ *   BLK → D0 (PWM backlight - was 3V3)
  */
 
 #endif

@@ -1,14 +1,11 @@
 /*
- * BatteryMonitor.h - Battery voltage monitoring and percentage calculation
+ * BatteryMonitor.h - Battery monitoring via MAX17048 fuel gauge (I2C)
  *
- * Hardware Requirements:
- * - Voltage divider: BAT+ → 200kΩ → A0 → 200kΩ → GND
- * - This divides battery voltage by 2 (safe for ESP32 ADC max 3.3V)
+ * The MAX17048 provides accurate state-of-charge without an ADC or
+ * voltage divider.  It shares the I2C bus (D4/D5) with MCP23017 and MPU6050.
+ * Fixed address: 0x36.
  *
- * LiPo Voltage Levels:
- * - 4.2V = 100% (fully charged)
- * - 3.7V = 50%  (nominal)
- * - 3.0V = 0%   (empty - don't discharge below this!)
+ * Required library: SparkFun_MAX1704x_Fuel_Gauge
  */
 
 #ifndef BATTERY_MONITOR_H
@@ -16,22 +13,25 @@
 
 #include <Arduino.h>
 
-// Initialize battery monitoring
+// Initialize MAX17048 — call after Wire.begin()
 void initBatteryMonitor();
 
-// Update battery reading (call periodically, e.g., every 5 seconds)
+// Poll the fuel gauge (throttled internally to BATTERY_UPDATE_INTERVAL)
 void updateBatteryReading();
 
-// Get current battery voltage in volts (e.g., 3.85)
+// Cell voltage in volts (3.0–4.2 for LiPo)
 float getBatteryVoltage();
 
-// Get battery percentage 0-100%
+// State of charge 0–100%
 int getBatteryPercentage();
 
-// Check if battery is low (below 20%)
+// True when SOC is at or below BATTERY_LOW_THRESHOLD
 bool isBatteryLow();
 
-// Check if running on battery (vs USB power)
+// True when MAX17048 initialized successfully (battery is present)
 bool isOnBattery();
+
+// True when the fuel gauge reports a positive charge rate (%/hour)
+bool isCharging();
 
 #endif

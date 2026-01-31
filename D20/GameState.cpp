@@ -5,6 +5,7 @@
 #include "GameState.h"
 #include "Display.h"
 #include "Config.h"
+#include "SDAnimations.h"
 #include <Arduino.h>
 
 // Game state variables
@@ -17,7 +18,6 @@ int previousNumber = 0;
 // Auto-return timer
 static unsigned long lastRollTime = 0;
 static bool resultDisplayed = false;
-#define AUTO_RETURN_DELAY 5000  // 5 seconds
 
 void initGameState() {
   currentDiceType = DICE_D20;
@@ -134,8 +134,10 @@ void rollDice() {
     Serial.print(" → ");
     Serial.println(currentNumber);
 
-    // Animated rolling effect
-    animatedRoll(currentNumber, maxValue, currentDiceType);
+    // Animated roll — SD animation with software fallback
+    if (!playRollAnimation()) {
+      animatedRoll(currentNumber, maxValue, currentDiceType);
+    }
 
     // Display result with both rolls
     displayAdvDisResult(currentNumber, roll1, roll2, rollMode, currentDiceType, previousNumber);
@@ -157,8 +159,10 @@ void rollDice() {
     Serial.print(" = ");
     Serial.println(total);
 
-    // Animated rolling effect
-    animatedRoll(currentNumber, maxValue, currentDiceType);
+    // Animated roll — SD animation with software fallback
+    if (!playRollAnimation()) {
+      animatedRoll(currentNumber, maxValue, currentDiceType);
+    }
 
     // Display final result
     displayMultiDiceResult(currentNumber, rolls, diceQuantity, maxValue, currentDiceType, previousNumber);
