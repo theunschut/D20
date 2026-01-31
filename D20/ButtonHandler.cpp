@@ -12,6 +12,7 @@
 #include "GameState.h"
 #include "Config.h"
 #include "Display.h"
+#include "SDAnimations.h"
 #include <Adafruit_MCP23X17.h>
 #include <Arduino.h>
 
@@ -59,6 +60,17 @@ void updateButtons() {
 
   uint8_t portA = mcp.readGPIO(0);  // Read all 8 pins of Port A in one I2C transaction
   unsigned long now = millis();
+
+  // Any button press skips the roll animation — don't process normal actions
+  if (isAnimationPlaying()) {
+    uint8_t newPresses = (~portA) & lastPortA & 0x0F;  // HIGH→LOW on buttons 0–3
+    if (newPresses) {
+      stopAnimation();
+      resetActivityTimer();
+    }
+    lastPortA = portA;
+    return;
+  }
 
   // Detect HIGH→LOW (press) transitions for each button
   for (int i = 0; i < 4; i++) {

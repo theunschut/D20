@@ -1,7 +1,9 @@
 /*
- * SDAnimations.h - SD card animation playback
+ * SDAnimations.h - SD card animation playback (non-blocking)
  *
  * Streams pre-rendered RGB565 frames from a MicroSD card to the display.
+ * Playback is driven frame-by-frame from loop() — buttons and motion
+ * detection remain responsive during animations.
  * Falls back gracefully if the SD card is missing or has no frames.
  *
  * Frame format (configured in Config.h):
@@ -27,9 +29,17 @@
 // Initialize SD card. Returns true if mounted and frames are available.
 bool initSDAnimations();
 
-// Play the roll animation from SD card.
-// Returns true if SD animation played, false if unavailable (caller should fall back).
-bool playRollAnimation();
+// Start non-blocking roll animation playback
+void startRollAnimation();
+
+// Call every loop — advances to next frame when due. No-op if not playing.
+void updateSDAnimation();
+
+// True while animation frames are being displayed
+bool isAnimationPlaying();
+
+// Stop playback early (e.g. button skip)
+void stopAnimation();
 
 // Returns true if the SD card is mounted and animation frames exist.
 bool isSDAvailable();

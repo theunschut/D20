@@ -21,6 +21,7 @@ void toggleRollMode();
 void increaseDiceQuantity();
 void decreaseDiceQuantity();
 void rollDice();
-void checkAutoReturn();  // Check if should return to welcome screen
+void checkRollComplete();   // Display result when roll animation finishes/skipped
+void checkAutoReturn();     // Check if should return to welcome screen
 
 #endif

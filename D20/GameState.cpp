@@ -19,6 +19,10 @@ int previousNumber = 0;
 static unsigned long lastRollTime = 0;
 static bool resultDisplayed = false;
 
+// Deferred result display — persists roll data across animation frames
+static int  pendingRolls[4] = {0};
+static bool pendingResult   = false;
+
 void initGameState() {
   currentDiceType = DICE_D20;
   diceQuantity = 1;
@@ -98,6 +102,23 @@ void decreaseDiceQuantity() {
   }
 }
 
+// Display the roll result — called when animation finishes or is skipped
+static void onRollAnimationComplete() {
+  if (!pendingResult) return;
+  pendingResult = false;
+
+  int maxValue = getDiceMax(currentDiceType);
+
+  if (rollMode == ADVANTAGE || rollMode == DISADVANTAGE) {
+    displayAdvDisResult(currentNumber, pendingRolls[0], pendingRolls[1], rollMode, currentDiceType, previousNumber);
+  } else {
+    displayMultiDiceResult(currentNumber, pendingRolls, diceQuantity, maxValue, currentDiceType, previousNumber);
+  }
+
+  lastRollTime = millis();
+  resultDisplayed = true;
+}
+
 void rollDice() {
   int maxValue = getDiceMax(currentDiceType);
   String diceName = getDiceName(currentDiceType);
@@ -111,10 +132,8 @@ void rollDice() {
 
   previousNumber = currentNumber;
   int total = 0;
-  int rolls[4] = {0};  // Store up to 4 rolls
 
   if (rollMode == ADVANTAGE || rollMode == DISADVANTAGE) {
-    // Roll twice, keep higher (advantage) or lower (disadvantage)
     int roll1 = random(1, maxValue + 1);
     int roll2 = random(1, maxValue + 1);
 
@@ -124,8 +143,8 @@ void rollDice() {
       currentNumber = min(roll1, roll2);
     }
 
-    rolls[0] = roll1;
-    rolls[1] = roll2;
+    pendingRolls[0] = roll1;
+    pendingRolls[1] = roll2;
 
     Serial.print("Rolls: ");
     Serial.print(roll1);
@@ -134,43 +153,37 @@ void rollDice() {
     Serial.print(" → ");
     Serial.println(currentNumber);
 
-    // Animated roll — SD animation with software fallback
-    if (!playRollAnimation()) {
-      animatedRoll(currentNumber, maxValue, currentDiceType);
-    }
-
-    // Display result with both rolls
-    displayAdvDisResult(currentNumber, roll1, roll2, rollMode, currentDiceType, previousNumber);
-
   } else {
-    // Normal roll - multiple dice
     for (int i = 0; i < diceQuantity; i++) {
-      rolls[i] = random(1, maxValue + 1);
-      total += rolls[i];
+      pendingRolls[i] = random(1, maxValue + 1);
+      total += pendingRolls[i];
     }
 
     currentNumber = total;
 
     Serial.print("Rolls: ");
     for (int i = 0; i < diceQuantity; i++) {
-      Serial.print(rolls[i]);
+      Serial.print(pendingRolls[i]);
       if (i < diceQuantity - 1) Serial.print(" + ");
     }
     Serial.print(" = ");
     Serial.println(total);
-
-    // Animated roll — SD animation with software fallback
-    if (!playRollAnimation()) {
-      animatedRoll(currentNumber, maxValue, currentDiceType);
-    }
-
-    // Display final result
-    displayMultiDiceResult(currentNumber, rolls, diceQuantity, maxValue, currentDiceType, previousNumber);
   }
 
-  // Start auto-return timer
-  lastRollTime = millis();
-  resultDisplayed = true;
+  // Start animation — SD is non-blocking, software fallback is blocking but short
+  pendingResult = true;
+  if (isSDAvailable()) {
+    startRollAnimation();
+  } else {
+    animatedRoll(currentNumber, maxValue, currentDiceType);
+    onRollAnimationComplete();
+  }
+}
+
+void checkRollComplete() {
+  if (pendingResult && !isAnimationPlaying()) {
+    onRollAnimationComplete();
+  }
 }
 
 void checkAutoReturn() {

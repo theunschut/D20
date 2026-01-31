@@ -72,8 +72,10 @@ void setup() {
 void loop() {
   updateButtons();
   updateMotionDetector();
-  updateBatteryReading();   // Throttled internally
-  updateBacklight();        // Auto-dim
+  updateSDAnimation();        // Advance animation frame if playing
+  updateBatteryReading();     // Throttled internally
+  updateBacklight();          // Auto-dim
+  checkRollComplete();        // Show result when animation finishes/skipped
   checkAutoReturn();
   delay(10);
 }

@@ -17,6 +17,7 @@
 #include "Config.h"
 #include "GameState.h"
 #include "Display.h"
+#include "SDAnimations.h"
 #include <Wire.h>
 #include <math.h>
 
@@ -94,6 +95,7 @@ bool initMotionDetector() {
 
 void updateMotionDetector() {
   if (!mpuInitialized) return;
+  if (isAnimationPlaying()) return;  // Ignore shakes during animation
 
   uint8_t raw[6];
   if (!readRegs(REG_ACCEL_XOUT_H, 6, raw)) return;
