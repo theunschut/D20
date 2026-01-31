@@ -16,7 +16,7 @@
 | D4 | 6 | **I2C SDA** | MCP23017 + MPU6050 + MAX17048 | Shared I2C data line |
 | D5 | 7 | **I2C SCL** | MCP23017 + MPU6050 + MAX17048 | Shared I2C clock line |
 | D6 | 21 | **SD Card CS** | SD Module CS | SPI chip select for SD |
-| D7 | 20 | **MCP23017 INTA** | MCP23017 INTA | Interrupt out — future sleep/wake |
+| D7 | 20 | Unused | — | INTA not used — buttons use polling |
 | D8 | 8 | SPI SCK | GC9A01 SCL + SD SCK | Hardware SPI clock — shared |
 | D9 | 9 | **SPI MISO** | SD Module MISO | SD card only (display is write-only) |
 | D10 | 10 | SPI MOSI | GC9A01 SDA + SD MOSI | Hardware SPI MOSI — shared |
@@ -31,8 +31,8 @@ All three share D4 (SDA) and D5 (SCL). Each has a unique address.
 
 | Device | Address | How Address Is Set |
 |--------|---------|-------------------|
-| MCP23017 | 0x20 | A0, A1, A2 all wired to GND |
-| MPU6050 | 0x68 | AD0 wired to GND |
+| MCP23017 | 0x20 | A0 wired to GND; A1 and A2 floating (default LOW) |
+| MPU6050 | 0x68 | AD0 wired to GND. Common clones (MPU-6886) return WHO_AM_I 0x70 — code uses raw I2C to support both |
 | MAX17048 | 0x36 | Fixed (not configurable) |
 
 Pull-up resistors: most breakout boards include 4.7 kΩ pull-ups on SDA/SCL. If using bare chips, add one set of 4.7 kΩ pull-ups to 3V3 on the shared bus.
@@ -65,10 +65,10 @@ Pull-up resistors: most breakout boards include 4.7 kΩ pull-ups on SDA/SCL. If 
 | SDA | D4 (GPIO6) | I2C data — shared bus |
 | SCL | D5 (GPIO7) | I2C clock — shared bus |
 | A0 | GND | Address bit — sets 0x20 |
-| A1 | GND | Address bit |
-| A2 | GND | Address bit |
+| A1 | — | Not connected (floating, defaults LOW) |
+| A2 | — | Not connected (floating, defaults LOW) |
 | RESET | 3V3 | Tie high to keep chip enabled |
-| INTA | D7 (GPIO20) | Interrupt output |
+| INTA | — | Not connected (polling used instead) |
 | INTB | — | Not connected |
 
 ### Button Connections (Port A)
@@ -110,7 +110,7 @@ Each button connects between the MCP23017 pin and GND.
 | GND | GND | |
 | SDA | D4 (GPIO6) | I2C data — shared bus |
 | SCL | D5 (GPIO7) | I2C clock — shared bus |
-| CELL | Battery + | Direct connection to LiPo positive terminal |
+| CELL | Battery + | **Required** — chip will not respond on I2C without a battery connected |
 | ALRT | — | Not connected (low-battery alert, optional future use) |
 | QSTRT | — | Not connected |
 
@@ -137,10 +137,11 @@ After wiring, these values in `Config.h` control shake sensitivity:
 
 | Constant | Default | Effect |
 |----------|---------|--------|
-| `SHAKE_THRESHOLD` | 20.0 m/s² | Acceleration magnitude needed to start a shake. At rest ≈ 9.81. Lower = more sensitive. |
-| `SHAKE_DURATION` | 150 ms | How long the shake must be sustained. Lower = easier to trigger. |
+| `SHAKE_THRESHOLD` | 18.0 m/s² | Acceleration magnitude needed to start a shake. At rest ≈ 9.81. Lower = more sensitive. |
+| `SHAKE_DURATION` | 200 ms | How long the shake must be sustained before triggering. Brief dips below `SHAKE_THRESHOLD` are allowed within a 150 ms grace window — shake is only abandoned if magnitude stays below threshold for the full 150 ms. |
 | `DEBOUNCE_DELAY` | 1000 ms | Cooldown after a roll before the next one is allowed. |
-| `REST_TIME` | 500 ms | Device must be still for this long before it's ready again. |
+| `REST_THRESHOLD` | 12.0 m/s² | Magnitude below which the device counts as "at rest". Must stay below this for `REST_TIME` before the next shake is armed. |
+| `REST_TIME` | 500 ms | Device must be still (below `REST_THRESHOLD`) for this long before it's ready again. |
 
 ---
 
@@ -165,8 +166,7 @@ If no `/roll/` directory or no `.bin` files are found, the dice falls back to th
 | Adafruit GFX Library | Graphics primitives | Library Manager |
 | Adafruit GC9A01A | Round display driver | Library Manager |
 | Adafruit MCP23X17 | I2C GPIO expander | Library Manager |
-| Adafruit MPU6050 | 6-axis IMU | Library Manager |
-| SparkFun MAX1704x Fuel Gauge | Battery fuel gauge | Library Manager |
+| SparkFun MAX1704x Fuel Gauge Arduino Library | Battery fuel gauge | Library Manager |
 | SD | SD card file I/O | Built-in |
 | Wire | I2C communication | Built-in |
 | SPI | SPI communication | Built-in |
